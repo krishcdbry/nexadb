@@ -1406,7 +1406,7 @@
             <!-- Logo -->
             <div class="logo">
                 <div class="logo-icon">
-                    <img id="logoImage" src="../nexadb-web/public/logo-light.svg" alt="NexaDB Logo">
+                    <img id="logoImage" src="/logo-light.svg" alt="NexaDB Logo">
                 </div>
             </div>
 
@@ -1644,6 +1644,14 @@
                                     <span>+</span>
                                     <span>Add Record</span>
                                 </button>
+                                <button class="btn btn-sm btn-primary" onclick="exportToTOON()" title="Export collection to TOON format (40-50% token reduction)">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                        <polyline points="7 10 12 15 17 10"/>
+                                        <line x1="12" y1="15" x2="12" y2="3"/>
+                                    </svg>
+                                    <span>Export TOON</span>
+                                </button>
                                 <button class="btn btn-sm btn-secondary" onclick="loadDocuments()">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <polyline points="23 4 23 10 17 10"/>
@@ -1786,8 +1794,34 @@ Or use aggregation pipeline:
                             </div>
 
                             <div class="editor-results" id="editorResults" style="display: none;">
-                                <div class="results-header">Results</div>
+                                <div class="results-header" style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span>Results</span>
+                                    <div class="search-mode-toggle" style="margin: 0;">
+                                        <button class="mode-btn active" id="resultJsonBtn" onclick="setResultFormat('json')">
+                                            JSON
+                                        </button>
+                                        <button class="mode-btn" id="resultToonBtn" onclick="setResultFormat('toon')">
+                                            TOON
+                                        </button>
+                                    </div>
+                                </div>
                                 <div class="results-content" id="editorResultsContent"></div>
+                                <div id="editorToonStats" style="display: none; padding: 16px; background: var(--bg-secondary); border-top: 1px solid var(--border-color); border-radius: 0 0 12px 12px;">
+                                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+                                        <div>
+                                            <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">JSON Size</div>
+                                            <div style="font-size: 18px; font-weight: 600; color: var(--text-primary);" id="editorJsonSize">-</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">Token Reduction</div>
+                                            <div style="font-size: 18px; font-weight: 600; color: #10b981;" id="editorReduction">-</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">Est. Savings (1M calls)</div>
+                                            <div style="font-size: 18px; font-weight: 600; color: #10b981;" id="editorSavings">-</div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1990,6 +2024,63 @@ Or use aggregation pipeline:
         </div>
     </div>
 
+    <!-- TOON Export Modal -->
+    <div class="modal-overlay" id="toonExportModal">
+        <div class="modal" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3>🚀 TOON Format Export</h3>
+                <button class="modal-close" onclick="closeModal('toonExportModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="padding: 12px 16px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 24px;">🎯</div>
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 4px;">Token-Optimized Format for LLMs</div>
+                            <div style="font-size: 13px; color: var(--text-secondary);">
+                                TOON reduces token usage by 40-50% compared to JSON. Perfect for GPT-4, Claude, and other LLM APIs.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Token Statistics -->
+                <div id="toonStats" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px;">
+                    <div style="padding: 16px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px;">
+                        <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 4px;">Documents</div>
+                        <div style="font-size: 24px; font-weight: 700; color: var(--primary);" id="toonDocCount">-</div>
+                    </div>
+                    <div style="padding: 16px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px;">
+                        <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 4px;">Token Reduction</div>
+                        <div style="font-size: 24px; font-weight: 700; color: #10b981;" id="toonReduction">-</div>
+                    </div>
+                    <div style="padding: 16px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px;">
+                        <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 4px;">Est. Savings (1M calls)</div>
+                        <div style="font-size: 24px; font-weight: 700; color: #10b981;" id="toonSavings">-</div>
+                    </div>
+                </div>
+
+                <!-- TOON Data Display -->
+                <div class="form-group">
+                    <label class="form-label">TOON Format Output</label>
+                    <textarea class="form-input" id="toonOutput" style="font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; min-height: 300px; resize: vertical;" readonly></textarea>
+                    <p class="form-hint">Copy this optimized format to send to LLM APIs</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('toonExportModal')">Close</button>
+                <button class="btn btn-success" onclick="downloadTOON()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Download .toon File
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
@@ -2014,8 +2105,8 @@ Or use aggregation pipeline:
                 // Dark theme uses light logo (white/light colored)
                 // Light theme uses dark logo (dark colored)
                 logoImage.src = theme === 'dark'
-                    ? '../nexadb-web/public/logo-light.svg'
-                    : '../nexadb-web/public/logo-dark.svg';
+                    ? '/logo-light.svg'
+                    : '/logo-dark.svg';
             }
         }
 
@@ -2053,6 +2144,8 @@ Or use aggregation pipeline:
             connectedAt: null,
             operationsCount: 0,
             viewMode: 'json', // 'json' or 'table'
+            resultFormat: 'json', // 'json' or 'toon' for query editor results
+            currentResultData: null, // Store query results for format switching
             operationsTimeline: {
                 '1h': [],
                 '6h': [],
@@ -3160,6 +3253,13 @@ Or use aggregation pipeline:
                         `/collections/${collection}?query=${encodeURIComponent(JSON.stringify(query))}&limit=100`);
                 }
 
+                // Store result data for format switching
+                state.currentResultData = {
+                    collection,
+                    documents: result.documents || result.results,
+                    count: result.count
+                };
+
                 // Add to history
                 state.queryHistory.unshift({
                     collection,
@@ -3173,12 +3273,8 @@ Or use aggregation pipeline:
 
                 renderQueryHistory();
 
-                // Show results
-                const resultsContainer = document.getElementById('editorResults');
-                const resultsContent = document.getElementById('editorResultsContent');
-
-                resultsContainer.style.display = 'block';
-                resultsContent.textContent = JSON.stringify(result.documents || result.results, null, 2);
+                // Display in current format
+                displayQueryResults();
 
                 showToast('success', 'Success', `Found ${result.count} results`);
             } catch (error) {
@@ -3189,6 +3285,59 @@ Or use aggregation pipeline:
 
                 resultsContainer.style.display = 'block';
                 resultsContent.textContent = `Error: ${error.message}`;
+                document.getElementById('editorToonStats').style.display = 'none';
+            }
+        }
+
+        function setResultFormat(format) {
+            state.resultFormat = format;
+
+            // Update button states
+            document.getElementById('resultJsonBtn').classList.toggle('active', format === 'json');
+            document.getElementById('resultToonBtn').classList.toggle('active', format === 'toon');
+
+            // Re-display results if they exist
+            if (state.currentResultData) {
+                displayQueryResults();
+            }
+        }
+
+        async function displayQueryResults() {
+            if (!state.currentResultData) return;
+
+            const resultsContainer = document.getElementById('editorResults');
+            const resultsContent = document.getElementById('editorResultsContent');
+            const statsContainer = document.getElementById('editorToonStats');
+
+            resultsContainer.style.display = 'block';
+
+            if (state.resultFormat === 'json') {
+                // Display JSON
+                resultsContent.textContent = JSON.stringify(state.currentResultData.documents, null, 2);
+                statsContainer.style.display = 'none';
+            } else {
+                // Display TOON - fetch from server
+                try {
+                    const response = await fetch(`/api/toon/export?collection=${encodeURIComponent(state.currentResultData.collection)}`);
+                    const result = await response.json();
+
+                    if (result.success) {
+                        resultsContent.textContent = result.toon_data;
+
+                        // Show statistics
+                        document.getElementById('editorJsonSize').textContent = result.token_stats?.json_size + ' bytes';
+                        document.getElementById('editorReduction').textContent =
+                            (result.token_stats?.reduction_percent || 0).toFixed(1) + '%';
+                        document.getElementById('editorSavings').textContent =
+                            '$' + ((result.token_stats?.reduction_percent || 0) * 10).toFixed(2);
+                        statsContainer.style.display = 'block';
+                    } else {
+                        throw new Error(result.error || 'Failed to convert to TOON');
+                    }
+                } catch (error) {
+                    resultsContent.textContent = `Error converting to TOON: ${error.message}`;
+                    statsContainer.style.display = 'none';
+                }
             }
         }
 
@@ -3259,6 +3408,72 @@ Or use aggregation pipeline:
                 `;
             } catch (error) {
                 container.innerHTML = `<div class="empty-state"><h3>Error</h3><p>${error.message}</p></div>`;
+            }
+        }
+
+        // TOON Export Functions
+        let currentToonData = null;
+
+        async function exportToTOON() {
+            if (!state.currentCollection) {
+                showToast('error', 'Error', 'Please select a collection first');
+                return;
+            }
+
+            try {
+                showToast('success', 'Exporting...', `Converting ${state.currentCollection} to TOON format...`);
+
+                // Call the admin server API endpoint
+                const response = await fetch(`/api/toon/export?collection=${encodeURIComponent(state.currentCollection)}`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Export failed');
+                }
+
+                // Store TOON data for download
+                currentToonData = result.toon_data;
+
+                // Update modal with results
+                document.getElementById('toonDocCount').textContent = result.count || 0;
+                document.getElementById('toonReduction').textContent =
+                    (result.token_stats?.reduction_percent || 0).toFixed(1) + '%';
+                document.getElementById('toonSavings').textContent =
+                    '$' + ((result.token_stats?.reduction_percent || 0) * 10).toFixed(2);
+                document.getElementById('toonOutput').value = result.toon_data;
+
+                // Show modal
+                showModal('toonExportModal');
+                showToast('success', 'Export Complete',
+                    `Exported ${result.count} documents with ${result.token_stats?.reduction_percent?.toFixed(1)}% token reduction`);
+
+            } catch (error) {
+                showToast('error', 'Export Failed', error.message);
+                console.error('TOON export error:', error);
+            }
+        }
+
+        function downloadTOON() {
+            if (!currentToonData) {
+                showToast('error', 'Error', 'No TOON data to download');
+                return;
+            }
+
+            try {
+                // Create blob and download
+                const blob = new Blob([currentToonData], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${state.currentCollection}.toon`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showToast('success', 'Downloaded', `${state.currentCollection}.toon saved successfully`);
+            } catch (error) {
+                showToast('error', 'Download Failed', error.message);
             }
         }
 
