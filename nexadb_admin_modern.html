@@ -3343,41 +3343,148 @@ Or use aggregation pipeline:
 
         function convertJsonToToon(collectionName, documents) {
             if (!documents || documents.length === 0) {
-                return `collection: ${collectionName}
-documents[0]{}:
-count: 0`;
+                return `[0]:\ncount: 0`;
             }
 
-            const allFields = new Set();
-            documents.forEach(doc => {
-                Object.keys(doc).forEach(key => allFields.add(key));
+            let output = `[${documents.length}]:\n`;
+
+            documents.forEach((doc, idx) => {
+                output += formatToonValue(doc, 1);
+                if (idx < documents.length - 1) {
+                    output += '\n';
+                }
             });
 
-            const fields = Array.from(allFields);
-            const fieldsList = fields.join(',');
+            return output;
+        }
 
-            let toonData = `collection: ${collectionName}
-`;
-            toonData += `documents[${documents.length}]{${fieldsList}}:
-`;
+        function formatToonValue(value, indent = 0) {
+            const spaces = '  '.repeat(indent);
 
-            documents.forEach(doc => {
-                const values = fields.map(field => {
-                    const value = doc[field];
-                    if (value === null || value === undefined) {
-                        return 'null';
+            if (value === null || value === undefined) {
+                return 'null';
+            }
+
+            if (Array.isArray(value)) {
+                if (value.length === 0) {
+                    return '[]';
+                }
+
+                // Check if all elements are primitives
+                const allPrimitives = value.every(v =>
+                    v === null || typeof v !== 'object'
+                );
+
+                if (allPrimitives) {
+                    // Inline array: [3]: val1,val2,val3
+                    const items = value.map(v =>
+                        v === null ? 'null' :
+                        typeof v === 'string' ? v :
+                        String(v)
+                    );
+                    return `[${value.length}]: ${items.join(',')}`;
+                } else {
+                    // Multi-line array with objects
+                    let result = `[${value.length}]:\n`;
+                    value.forEach((item, i) => {
+                        result += spaces + '  - ';
+                        if (typeof item === 'object' && item !== null) {
+                            const lines = formatToonObject(item, indent + 2).split('\n');
+                            result += lines[0] + '\n';
+                            for (let j = 1; j < lines.length; j++) {
+                                result += spaces + '    ' + lines[j];
+                                if (j < lines.length - 1) result += '\n';
+                            }
+                        } else {
+                            result += formatPrimitive(item);
+                        }
+                        if (i < value.length - 1) result += '\n';
+                    });
+                    return result;
+                }
+            }
+
+            if (typeof value === 'object') {
+                return formatToonObject(value, indent);
+            }
+
+            return formatPrimitive(value);
+        }
+
+        function formatToonObject(obj, indent = 0) {
+            const spaces = '  '.repeat(indent);
+            let result = '';
+            const keys = Object.keys(obj);
+
+            keys.forEach((key, i) => {
+                const value = obj[key];
+                result += `${spaces}- ${key}: `;
+
+                if (value === null || value === undefined) {
+                    result += 'null';
+                } else if (Array.isArray(value)) {
+                    if (value.length === 0) {
+                        result += '[]';
+                    } else {
+                        const allPrimitives = value.every(v =>
+                            v === null || typeof v !== 'object'
+                        );
+
+                        if (allPrimitives) {
+                            const items = value.map(v =>
+                                v === null ? 'null' :
+                                typeof v === 'string' ? (v.includes(':') || v.includes(',') ? `"${v}"` : v) :
+                                String(v)
+                            );
+                            result += `[${value.length}]: ${items.join(',')}`;
+                        } else {
+                            result += '\n';
+                            value.forEach((item, idx) => {
+                                result += spaces + '    - ';
+                                if (typeof item === 'object' && item !== null) {
+                                    const itemLines = formatToonObject(item, indent + 3).split('\n');
+                                    result += itemLines.join('\n' + spaces + '      ');
+                                } else {
+                                    result += formatPrimitive(item);
+                                }
+                                if (idx < value.length - 1) result += '\n';
+                            });
+                        }
                     }
-                    if (typeof value === 'object') {
-                        return JSON.stringify(value);
-                    }
-                    return String(value);
-                });
-                toonData += `  ${values.join(',')}
-`;
+                } else if (typeof value === 'object') {
+                    result += '\n';
+                    const nested = formatToonObject(value, indent + 2);
+                    result += nested;
+                } else {
+                    result += formatPrimitive(value);
+                }
+
+                if (i < keys.length - 1) {
+                    result += '\n';
+                }
             });
 
-            toonData += `count: ${documents.length}`;
-            return toonData;
+            return result;
+        }
+
+        function formatPrimitive(value) {
+            if (value === null || value === undefined) {
+                return 'null';
+            }
+            if (typeof value === 'boolean') {
+                return String(value);
+            }
+            if (typeof value === 'number') {
+                return String(value);
+            }
+            if (typeof value === 'string') {
+                // Quote strings that contain special characters
+                if (value.includes(':') || value.includes(',') || value.includes('\n') || value.includes('"')) {
+                    return `"${value.replace(/"/g, '\\"')}"`;
+                }
+                return value;
+            }
+            return String(value);
         }
 
         function clearEditor() {
