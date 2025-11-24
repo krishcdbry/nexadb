@@ -920,6 +920,44 @@
             white-space: pre-wrap;
         }
 
+        .results-editor {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            min-height: 200px;
+            max-height: 500px;
+            overflow: auto;
+            cursor: text;
+            user-select: text;
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+        }
+
+        .results-editor::selection {
+            background: rgba(139, 92, 246, 0.3);
+        }
+
+        .results-editor::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        .results-editor::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        .results-editor::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .results-editor::-webkit-scrollbar-thumb:hover {
+            background: #4a4a5f;
+        }
+
         /* Modal */
         .modal-overlay {
             display: none;
@@ -1796,16 +1834,25 @@ Or use aggregation pipeline:
                             <div class="editor-results" id="editorResults" style="display: none;">
                                 <div class="results-header" style="display: flex; justify-content: space-between; align-items: center;">
                                     <span>Results</span>
-                                    <div class="search-mode-toggle" style="margin: 0;">
-                                        <button class="mode-btn active" id="resultJsonBtn" onclick="setResultFormat('json')">
-                                            JSON
-                                        </button>
-                                        <button class="mode-btn" id="resultToonBtn" onclick="setResultFormat('toon')">
-                                            TOON
+                                    <div style="display: flex; gap: 12px; align-items: center;">
+                                        <div class="search-mode-toggle" style="margin: 0;">
+                                            <button class="mode-btn active" id="resultJsonBtn" onclick="setResultFormat('json')">
+                                                JSON
+                                            </button>
+                                            <button class="mode-btn" id="resultToonBtn" onclick="setResultFormat('toon')">
+                                                TOON
+                                            </button>
+                                        </div>
+                                        <button class="btn-secondary" onclick="copyResults()" style="padding: 8px 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                            </svg>
+                                            Copy
                                         </button>
                                     </div>
                                 </div>
-                                <div class="results-content" id="editorResultsContent"></div>
+                                <div class="results-content results-editor" id="editorResultsContent"></div>
                                 <div id="editorToonStats" style="display: none; padding: 16px; background: var(--bg-secondary); border-top: 1px solid var(--border-color); border-radius: 0 0 12px 12px;">
                                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
                                         <div>
@@ -3502,6 +3549,36 @@ Or use aggregation pipeline:
         function clearEditor() {
             document.getElementById('queryEditorTextarea').value = '{ }';
             document.getElementById('editorResults').style.display = 'none';
+        }
+
+        async function copyResults() {
+            const resultsContent = document.getElementById('editorResultsContent');
+            const text = resultsContent.textContent;
+
+            if (!text) {
+                showToast('error', 'Error', 'No results to copy');
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(text);
+                showToast('success', 'Copied!', 'Results copied to clipboard');
+            } catch (error) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showToast('success', 'Copied!', 'Results copied to clipboard');
+                } catch (err) {
+                    showToast('error', 'Error', 'Failed to copy results');
+                }
+                document.body.removeChild(textArea);
+            }
         }
 
         // Monitoring Functions
