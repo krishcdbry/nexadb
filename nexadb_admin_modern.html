@@ -3349,7 +3349,7 @@ Or use aggregation pipeline:
             let output = `[${documents.length}]:\n`;
 
             documents.forEach((doc, idx) => {
-                output += formatToonValue(doc, 1);
+                output += formatToonValue(doc, 1, true);  // Pass true for root document
                 if (idx < documents.length - 1) {
                     output += '\n';
                 }
@@ -3358,7 +3358,7 @@ Or use aggregation pipeline:
             return output;
         }
 
-        function formatToonValue(value, indent = 0) {
+        function formatToonValue(value, indent = 0, isRootDoc = false) {
             const spaces = '  '.repeat(indent);
 
             if (value === null || value === undefined) {
@@ -3389,7 +3389,7 @@ Or use aggregation pipeline:
                     value.forEach((item, i) => {
                         result += spaces + '  - ';
                         if (typeof item === 'object' && item !== null) {
-                            const lines = formatToonObject(item, indent + 2).split('\n');
+                            const lines = formatToonObject(item, indent + 2, false).split('\n');
                             result += lines[0] + '\n';
                             for (let j = 1; j < lines.length; j++) {
                                 result += spaces + '    ' + lines[j];
@@ -3405,20 +3405,26 @@ Or use aggregation pipeline:
             }
 
             if (typeof value === 'object') {
-                return formatToonObject(value, indent);
+                return formatToonObject(value, indent, isRootDoc);
             }
 
             return formatPrimitive(value);
         }
 
-        function formatToonObject(obj, indent = 0) {
+        function formatToonObject(obj, indent = 0, isRootDoc = false) {
             const spaces = '  '.repeat(indent);
             let result = '';
             const keys = Object.keys(obj);
 
             keys.forEach((key, i) => {
                 const value = obj[key];
-                result += `${spaces}- ${key}: `;
+
+                // Only add '-' for root document, not for nested objects
+                if (isRootDoc && i === 0) {
+                    result += `${spaces}- ${key}: `;
+                } else {
+                    result += `${spaces}${key}: `;
+                }
 
                 if (value === null || value === undefined) {
                     result += 'null';
@@ -3440,10 +3446,16 @@ Or use aggregation pipeline:
                         } else {
                             result += '\n';
                             value.forEach((item, idx) => {
-                                result += spaces + '    - ';
+                                result += spaces + '  - ';
                                 if (typeof item === 'object' && item !== null) {
-                                    const itemLines = formatToonObject(item, indent + 3).split('\n');
-                                    result += itemLines.join('\n' + spaces + '      ');
+                                    // For array items, don't use dash prefix for nested keys
+                                    const itemStr = formatToonObject(item, indent + 2, false);
+                                    // Remove first dash if it exists
+                                    const lines = itemStr.split('\n');
+                                    result += lines[0].replace(/^\s*-\s*/, '');
+                                    for (let j = 1; j < lines.length; j++) {
+                                        result += '\n' + spaces + '    ' + lines[j];
+                                    }
                                 } else {
                                     result += formatPrimitive(item);
                                 }
@@ -3453,7 +3465,7 @@ Or use aggregation pipeline:
                     }
                 } else if (typeof value === 'object') {
                     result += '\n';
-                    const nested = formatToonObject(value, indent + 2);
+                    const nested = formatToonObject(value, indent + 1, false);
                     result += nested;
                 } else {
                     result += formatPrimitive(value);
