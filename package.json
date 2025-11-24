@@ -1,0 +1,68 @@
+{
+  "name": "nexadb",
+  "version": "1.0.0",
+  "description": "Zero-dependency LSM-Tree database with professional admin UI",
+  "main": "index.js",
+  "bin": {
+    "nexadb": "./bin/nexadb.js",
+    "nexadb-server": "./bin/nexadb-server.js",
+    "nexadb-admin": "./bin/nexadb-admin.js"
+  },
+  "scripts": {
+    "start": "node bin/nexadb-server.js",
+    "admin": "node bin/nexadb-admin.js",
+    "test": "echo \"No tests yet\" && exit 0",
+    "install-python": "python3 -m pip install --upgrade pip",
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/nexadb.git"
+  },
+  "keywords": [
+    "database",
+    "nosql",
+    "lsm-tree",
+    "key-value",
+    "document-database",
+    "vector-database",
+    "embeddings",
+    "zero-dependency",
+    "lightweight",
+    "python",
+    "rest-api"
+  ],
+  "author": "NexaDB Team",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yourusername/nexadb/issues"
+  },
+  "homepage": "https://github.com/yourusername/nexadb#readme",
+  "engines": {
+    "node": ">=14.0.0",
+    "python": ">=3.8"
+  },
+  "preferGlobal": true,
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "files": [
+    "bin/",
+    "scripts/",
+    "nexadb_server.py",
+    "nexadb_admin_server.py",
+    "nexadb_client.py",
+    "veloxdb_core.py",
+    "storage_engine.py",
+    "nexadb_admin_professional.html",
+    "nexadb_admin_modern.html",
+    "README.md",
+    "LICENSE",
+    "INSTALLATION.md",
+    "DEPLOY_*.md"
+  ],
+  "devDependencies": {},
+  "dependencies": {}
+}

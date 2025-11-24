@@ -1,0 +1,39 @@
+# MANIFEST.in - Include additional files in Python package
+
+# Include documentation
+include README.md
+include LICENSE
+include INSTALLATION.md
+include QUICKSTART.md
+include CLAUDE_CONTEXT.md
+
+# Include deployment guides
+include DEPLOY_*.md
+
+# Include professional design docs
+include PROFESSIONAL_DESIGN_SYSTEM.md
+include LAUNCH_PROFESSIONAL_UI.md
+
+# Include admin UI files
+include nexadb_admin_professional.html
+include nexadb_admin_modern.html
+
+# Include npm package files
+include package.json
+include INSTALL_NPM.md
+
+# Include bin scripts
+recursive-include bin *.js
+
+# Include scripts
+recursive-include scripts *.js
+
+# Exclude development files
+exclude .gitignore
+exclude .env
+exclude .DS_Store
+recursive-exclude __pycache__ *
+recursive-exclude *.pyc *
+recursive-exclude .git *
+recursive-exclude nexadb_data *
+recursive-exclude tests *
