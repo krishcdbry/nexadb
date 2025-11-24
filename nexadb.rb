@@ -7,14 +7,17 @@ class Nexadb < Formula
   desc "Zero-dependency LSM-Tree database with vector search - The database for quick apps"
   homepage "https://github.com/krishcdbry/nexadb"
   url "https://github.com/krishcdbry/nexadb/archive/refs/tags/v1.0.0.tar.gz"
-  sha256 "YOUR_SHA256_HASH_HERE"  # Generate after creating release
+  sha256 "5058886298767c3130c084aaa82bdeb2fc2c867160175960b83753c1a94680f6"
   license "MIT"
   head "https://github.com/krishcdbry/nexadb.git", branch: "main"
 
   # Python 3.8+ required
-  depends_on "python@3.11"
+  depends_on "python@3"
 
   def install
+    # Use system Python3 (works with any version)
+    python3 = which("python3")
+
     # Install Python files
     libexec.install Dir["*.py"]
     libexec.install Dir["*.html"]
@@ -25,32 +28,34 @@ class Nexadb < Formula
     # Create wrapper scripts
     (bin/"nexadb-server").write <<~EOS
       #!/bin/bash
-      PYTHONPATH="#{libexec}" exec "#{Formula["python@3.11"].opt_bin}/python3" "#{libexec}/nexadb_server.py" "$@"
+      PYTHONPATH="#{libexec}" exec "#{python3}" "#{libexec}/nexadb_server.py" "$@"
     EOS
+    (bin/"nexadb-server").chmod 0755
 
     (bin/"nexadb-admin").write <<~EOS
       #!/bin/bash
-      PYTHONPATH="#{libexec}" exec "#{Formula["python@3.11"].opt_bin}/python3" "#{libexec}/nexadb_admin_server.py" "$@"
+      PYTHONPATH="#{libexec}" exec "#{python3}" "#{libexec}/nexadb_admin_server.py" "$@"
     EOS
+    (bin/"nexadb-admin").chmod 0755
 
     # Main nexadb command
     (bin/"nexadb").write <<~EOS
-      #!/bin/bash
+#!/bin/bash
 
-      case "$1" in
-        start|server)
-          shift
-          PYTHONPATH="#{libexec}" exec "#{Formula["python@3.11"].opt_bin}/python3" "#{libexec}/nexadb_server.py" "$@"
-          ;;
-        admin|ui)
-          shift
-          PYTHONPATH="#{libexec}" exec "#{Formula["python@3.11"].opt_bin}/python3" "#{libexec}/nexadb_admin_server.py" "$@"
-          ;;
-        --version|-v)
-          echo "NexaDB v#{version}"
-          ;;
-        --help|-h|help|*)
-          cat <<HELP
+case "$1" in
+  start|server)
+    shift
+    PYTHONPATH="#{libexec}" exec "#{python3}" "#{libexec}/nexadb_server.py" "$@"
+    ;;
+  admin|ui)
+    shift
+    PYTHONPATH="#{libexec}" exec "#{python3}" "#{libexec}/nexadb_admin_server.py" "$@"
+    ;;
+  --version|-v)
+    echo "NexaDB v#{version}"
+    ;;
+  --help|-h|help|*)
+    cat <<HELP
 NexaDB - The database for quick apps
 
 Usage:
@@ -69,39 +74,51 @@ Examples:
   nexadb-server --port 8080       # Custom port
   nexadb-admin --host 0.0.0.0     # Bind to all interfaces
 
-Learn more: https://github.com/yourusername/nexadb
+Learn more: https://github.com/krishcdbry/nexadb
 HELP
-          ;;
-      esac
+    ;;
+esac
     EOS
+    (bin/"nexadb").chmod 0755
+  end
 
-    # Make scripts executable
-    chmod 0755, bin/"nexadb"
-    chmod 0755, bin/"nexadb-server"
-    chmod 0755, bin/"nexadb-admin"
+  def post_install
+    # Auto-add Homebrew to PATH if not already present
+    shell_rc = if ENV["SHELL"]&.include?("zsh")
+      "#{ENV["HOME"]}/.zshrc"
+    else
+      "#{ENV["HOME"]}/.bash_profile"
+    end
+
+    homebrew_path = "export PATH=\"#{HOMEBREW_PREFIX}/bin:$PATH\""
+
+    if File.exist?(shell_rc)
+      content = File.read(shell_rc)
+      unless content.include?("#{HOMEBREW_PREFIX}/bin")
+        File.open(shell_rc, "a") do |f|
+          f.puts "\n# Added by NexaDB"
+          f.puts homebrew_path
+        end
+        ohai "Added Homebrew to PATH in #{shell_rc}"
+        ohai "Run: source #{shell_rc}"
+      end
+    end
   end
 
   def caveats
     <<~EOS
       🎉 NexaDB installed successfully!
 
-      Quick Start:
-        1. Start database:  nexadb start
-        2. Start admin UI:  nexadb admin
-        3. Open browser:    http://localhost:9999
+      Quick Start (run in new terminal or source your shell config):
+        nexadb start        Start database server
+        nexadb admin        Start admin UI
 
-      Commands:
-        nexadb start        Start database server (port 6969)
-        nexadb admin        Start admin UI (port 9999)
-        nexadb --help       Show all commands
+      If 'nexadb' command not found, run:
+        source ~/.zshrc     (or source ~/.bash_profile)
 
-      Documentation:
-        Homepage: https://github.com/yourusername/nexadb
-        Docs:     https://github.com/yourusername/nexadb#readme
+      Or simply open a new terminal window.
 
-      Connect from your app:
-        npm install nexadb-client
-        pip install nexadb-client
+      Documentation: https://github.com/krishcdbry/nexadb
 
       Happy building! 🚀
     EOS

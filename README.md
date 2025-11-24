@@ -60,6 +60,19 @@ NexaDB is a **lightweight, high-performance database** built from scratch in Pyt
 - Support for any dimension (384, 768, 1536, etc.)
 - Perfect for semantic search, recommendations
 
+✅ **TOON Format Support** 🚀 **FIRST DATABASE EVER!**
+- Token-Oriented Object Notation
+- **40-50% fewer tokens** than JSON for LLM applications
+- Native support in binary protocol
+- Perfect for RAG systems and AI pipelines
+- [Learn more about TOON](./TOON_SUPPORT.md)
+
+✅ **Binary Protocol**
+- 3-10x faster than HTTP/REST
+- MessagePack encoding
+- Persistent TCP connections
+- 1000+ concurrent connections
+
 ✅ **RESTful HTTP API**
 - Simple JSON API
 - API key authentication
