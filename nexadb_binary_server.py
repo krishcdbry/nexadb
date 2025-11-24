@@ -93,6 +93,7 @@ class NexaDBBinaryProtocol:
     MSG_DISCONNECT = 0x0A
     MSG_QUERY_TOON = 0x0B  # Query with TOON format response
     MSG_EXPORT_TOON = 0x0C  # Export collection to TOON format
+    MSG_IMPORT_TOON = 0x0D  # Import TOON data into collection
 
     # Server → Client response types
     MSG_SUCCESS = 0x81
@@ -434,6 +435,10 @@ class NexaDBBinaryServer:
                 # EXPORT_TOON - Export collection to TOON format
                 self._handle_export_toon(sock, data)
 
+            elif msg_type == NexaDBBinaryProtocol.MSG_IMPORT_TOON:
+                # IMPORT_TOON - Import TOON data into collection
+                self._handle_import_toon(sock, data)
+
             else:
                 self._send_error(sock, f"Unknown message type: {msg_type}")
 
@@ -704,6 +709,71 @@ class NexaDBBinaryServer:
                 'estimated_cost_savings': f"~{round(token_reduction, 0)}% less tokens for LLM processing"
             }
         })
+
+    def _handle_import_toon(self, sock: socket.socket, data: Dict[str, Any]):
+        """
+        Handle IMPORT_TOON message.
+
+        Import TOON formatted data into a collection.
+        Automatically converts TOON to JSON for storage.
+        """
+        collection_name = data.get('collection')
+        toon_data = data.get('toon_data')
+        replace = data.get('replace', False)  # Replace existing collection?
+
+        if not collection_name:
+            self._send_error(sock, "Missing 'collection' field")
+            return
+
+        if not toon_data:
+            self._send_error(sock, "Missing 'toon_data' field")
+            return
+
+        try:
+            # Convert TOON to JSON
+            import json
+            json_str = toon_to_json(toon_data)
+            parsed_data = json.loads(json_str)
+
+            # Extract documents
+            documents = []
+            if isinstance(parsed_data, dict):
+                # Check if it has a 'documents' field (export format)
+                if 'documents' in parsed_data:
+                    documents = parsed_data['documents']
+                else:
+                    # Single document
+                    documents = [parsed_data]
+            elif isinstance(parsed_data, list):
+                # Array of documents
+                documents = parsed_data
+            else:
+                self._send_error(sock, "Invalid TOON data structure")
+                return
+
+            # Get collection
+            collection = self.db.collection(collection_name)
+
+            # Replace existing data if requested
+            if replace:
+                # Delete all existing documents
+                all_docs = collection.find({}, limit=100000)
+                for doc in all_docs:
+                    collection.delete(doc.get('_id'))
+
+            # Insert documents
+            doc_ids = collection.insert_many(documents)
+
+            self._send_success(sock, {
+                'collection': collection_name,
+                'imported': len(doc_ids),
+                'replaced': replace,
+                'document_ids': doc_ids[:100],  # Return first 100 IDs
+                'message': f"Successfully imported {len(doc_ids)} documents from TOON format"
+            })
+
+        except Exception as e:
+            self._send_error(sock, f"Failed to import TOON data: {str(e)}")
 
     def get_stats(self) -> Dict[str, Any]:
         """Get server statistics."""
