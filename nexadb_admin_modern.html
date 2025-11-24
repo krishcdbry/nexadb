@@ -899,7 +899,7 @@
             border-radius: 12px;
             border: 1px solid var(--border-color);
             padding: 20px;
-            max-height: 400px;
+            max-height: 600px;
             overflow-y: auto;
         }
 
@@ -3316,29 +3316,68 @@ Or use aggregation pipeline:
                 resultsContent.textContent = JSON.stringify(state.currentResultData.documents, null, 2);
                 statsContainer.style.display = 'none';
             } else {
-                // Display TOON - fetch from server
+                // Display TOON - convert the current query results (not entire collection)
                 try {
-                    const response = await fetch(`/api/toon/export?collection=${encodeURIComponent(state.currentResultData.collection)}`);
-                    const result = await response.json();
+                    const toonData = convertJsonToToon(
+                        state.currentResultData.collection,
+                        state.currentResultData.documents
+                    );
 
-                    if (result.success) {
-                        resultsContent.textContent = result.toon_data;
+                    const jsonStr = JSON.stringify(state.currentResultData.documents);
+                    const jsonSize = jsonStr.length;
+                    const toonSize = toonData.length;
+                    const reductionPercent = ((jsonSize - toonSize) / jsonSize * 100).toFixed(1);
 
-                        // Show statistics
-                        document.getElementById('editorJsonSize').textContent = result.token_stats?.json_size + ' bytes';
-                        document.getElementById('editorReduction').textContent =
-                            (result.token_stats?.reduction_percent || 0).toFixed(1) + '%';
-                        document.getElementById('editorSavings').textContent =
-                            '$' + ((result.token_stats?.reduction_percent || 0) * 10).toFixed(2);
-                        statsContainer.style.display = 'block';
-                    } else {
-                        throw new Error(result.error || 'Failed to convert to TOON');
-                    }
+                    resultsContent.textContent = toonData;
+
+                    document.getElementById('editorJsonSize').textContent = jsonSize + ' bytes';
+                    document.getElementById('editorReduction').textContent = reductionPercent + '%';
+                    document.getElementById('editorSavings').textContent = '$' + (reductionPercent * 10).toFixed(2);
+                    statsContainer.style.display = 'block';
                 } catch (error) {
                     resultsContent.textContent = `Error converting to TOON: ${error.message}`;
                     statsContainer.style.display = 'none';
                 }
             }
+        }
+
+        function convertJsonToToon(collectionName, documents) {
+            if (!documents || documents.length === 0) {
+                return `collection: ${collectionName}
+documents[0]{}:
+count: 0`;
+            }
+
+            const allFields = new Set();
+            documents.forEach(doc => {
+                Object.keys(doc).forEach(key => allFields.add(key));
+            });
+
+            const fields = Array.from(allFields);
+            const fieldsList = fields.join(',');
+
+            let toonData = `collection: ${collectionName}
+`;
+            toonData += `documents[${documents.length}]{${fieldsList}}:
+`;
+
+            documents.forEach(doc => {
+                const values = fields.map(field => {
+                    const value = doc[field];
+                    if (value === null || value === undefined) {
+                        return 'null';
+                    }
+                    if (typeof value === 'object') {
+                        return JSON.stringify(value);
+                    }
+                    return String(value);
+                });
+                toonData += `  ${values.join(',')}
+`;
+            });
+
+            toonData += `count: ${documents.length}`;
+            return toonData;
         }
 
         function clearEditor() {
