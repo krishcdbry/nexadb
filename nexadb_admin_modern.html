@@ -4,42 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NexaDB - Next-Generation Database</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        /* Dark Theme (Default) */
+        /* Dark Theme (Default) - Matching Website */
         :root[data-theme="dark"] {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --primary-light: #818cf8;
-            --secondary: #8b5cf6;
+            --primary: #8b5cf6;
+            --primary-dark: #7c3aed;
+            --primary-light: #a78bfa;
+            --secondary: #6366f1;
             --success: #10b981;
             --danger: #ef4444;
             --warning: #f59e0b;
 
-            /* Dark theme colors */
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-tertiary: #334155;
-            --bg-elevated: #1e293b;
-            --bg-input: #334155;
+            /* Dark theme colors - Matching Website */
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #0d0d12;
+            --bg-tertiary: #1a1a24;
+            --bg-elevated: #1e1e2e;
+            --bg-input: #1a1a24;
 
-            --text-primary: #f1f5f9;
-            --text-secondary: #cbd5e1;
+            --text-primary: #ffffff;
+            --text-secondary: #e2e8f0;
             --text-tertiary: #94a3b8;
             --text-muted: #64748b;
 
-            --border-color: #334155;
-            --border-light: #475569;
+            --border-color: #2d2d3d;
+            --border-light: #3d3d4d;
 
-            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
-            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
-            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);
-            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.6), 0 8px 10px -6px rgb(0 0 0 / 0.6);
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.6), 0 1px 2px -1px rgb(0 0 0 / 0.6);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.7), 0 2px 4px -2px rgb(0 0 0 / 0.7);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.8), 0 4px 6px -4px rgb(0 0 0 / 0.8);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.9), 0 8px 10px -6px rgb(0 0 0 / 0.9);
 
-            --overlay-bg: rgba(15, 23, 42, 0.85);
+            --overlay-bg: rgba(0, 0, 0, 0.9);
         }
 
         /* Light Theme */
@@ -76,37 +74,37 @@
             --overlay-bg: rgba(15, 23, 42, 0.75);
         }
 
-        /* Default to dark theme */
+        /* Default to dark theme - Matching Website */
         :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --primary-light: #818cf8;
-            --secondary: #8b5cf6;
+            --primary: #8b5cf6;
+            --primary-dark: #7c3aed;
+            --primary-light: #a78bfa;
+            --secondary: #6366f1;
             --success: #10b981;
             --danger: #ef4444;
             --warning: #f59e0b;
 
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-tertiary: #334155;
-            --bg-elevated: #1e293b;
-            --bg-input: #334155;
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #0d0d12;
+            --bg-tertiary: #1a1a24;
+            --bg-elevated: #1e1e2e;
+            --bg-input: #1a1a24;
 
-            --text-primary: #f1f5f9;
-            --text-secondary: #cbd5e1;
+            --text-primary: #ffffff;
+            --text-secondary: #e2e8f0;
             --text-tertiary: #94a3b8;
             --text-muted: #64748b;
 
-            --border-color: #334155;
-            --border-light: #475569;
+            --border-color: #2d2d3d;
+            --border-light: #3d3d4d;
 
-            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
-            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
-            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);
-            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.6), 0 8px 10px -6px rgb(0 0 0 / 0.6);
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.6), 0 1px 2px -1px rgb(0 0 0 / 0.6);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.7), 0 2px 4px -2px rgb(0 0 0 / 0.7);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.8), 0 4px 6px -4px rgb(0 0 0 / 0.8);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.9), 0 8px 10px -6px rgb(0 0 0 / 0.9);
 
-            --overlay-bg: rgba(15, 23, 42, 0.85);
+            --overlay-bg: rgba(0, 0, 0, 0.9);
         }
 
         * {
@@ -116,7 +114,7 @@
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
             line-height: 1.6;
@@ -125,57 +123,52 @@
             transition: background-color 0.3s ease, color 0.3s ease;
         }
 
-        /* Header */
-        .header {
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border-color);
-            padding: 0;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .header-content {
-            max-width: 1800px;
-            margin: 0 auto;
-            padding: 16px 24px;
+        /* Floating Header Actions */
+        .floating-header {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
             display: flex;
-            justify-content: space-between;
+            gap: 12px;
             align-items: center;
         }
 
         .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .logo-icon {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border-radius: 10px;
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-            font-weight: 800;
-            color: white;
-            box-shadow: var(--shadow-md);
+        }
+
+        .logo-icon {
+            width: 140px;
+            height: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logo-icon img {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
         }
 
         .logo-text h1 {
             font-size: 20px;
-            font-weight: 700;
+            font-weight: 900;
             color: var(--text-primary);
             letter-spacing: -0.5px;
         }
 
         .logo-text p {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--text-tertiary);
-            font-weight: 500;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .connection-status {
@@ -196,8 +189,9 @@
         }
 
         .status-connected {
-            background: #d1fae5;
-            color: #065f46;
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
         }
 
         .status-connected .status-dot {
@@ -205,8 +199,9 @@
         }
 
         .status-disconnected {
-            background: #fee2e2;
-            color: #991b1b;
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
         }
 
         .status-disconnected .status-dot {
@@ -220,13 +215,11 @@
 
         /* Main Layout */
         .container {
-            max-width: 1800px;
-            margin: 0 auto;
             display: flex;
-            height: calc(100vh - 73px);
+            height: 100vh;
         }
 
-        /* Sidebar */
+        /* Sidebar Navigation */
         .sidebar {
             width: 280px;
             background: var(--bg-secondary);
@@ -234,6 +227,100 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .sidebar.collapsed {
+            width: 70px;
+        }
+
+        .sidebar.collapsed .logo-text,
+        .sidebar.collapsed .nav-item span,
+        .sidebar.collapsed .sidebar-header,
+        .sidebar.collapsed .collections-list {
+            display: none;
+        }
+
+        .sidebar.collapsed .logo {
+            justify-content: center;
+            padding: 20px 10px;
+        }
+
+        .sidebar.collapsed .nav-item {
+            justify-content: center;
+            padding: 12px;
+        }
+
+        .sidebar-toggle {
+            position: absolute;
+            top: 20px;
+            right: -15px;
+            width: 30px;
+            height: 30px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            transition: all 0.2s;
+            box-shadow: var(--shadow-md);
+        }
+
+        .sidebar-toggle:hover {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .sidebar-toggle svg {
+            width: 16px;
+            height: 16px;
+            transition: transform 0.3s;
+        }
+
+        .sidebar.collapsed .sidebar-toggle svg {
+            transform: rotate(180deg);
+        }
+
+        .nav-menu {
+            padding: 20px 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            margin-bottom: 4px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .sidebar-header {
@@ -256,7 +343,7 @@
             background: var(--primary);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 9999px;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
@@ -361,7 +448,7 @@
         .content-header {
             background: var(--bg-secondary);
             border-bottom: 1px solid var(--border-color);
-            padding: 20px 32px;
+            padding: 16px 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -369,7 +456,7 @@
 
         .content-title h2 {
             font-size: 24px;
-            font-weight: 700;
+            font-weight: 900;
             color: var(--text-primary);
             letter-spacing: -0.5px;
         }
@@ -377,7 +464,8 @@
         .content-subtitle {
             font-size: 13px;
             color: var(--text-tertiary);
-            margin-top: 4px;
+            margin-top: 2px;
+            font-weight: 600;
         }
 
         .toolbar {
@@ -386,15 +474,15 @@
         }
 
         .btn {
-            padding: 10px 20px;
-            border-radius: 8px;
+            padding: 12px 24px;
+            border-radius: 9999px;
             border: none;
-            font-size: 14px;
-            font-weight: 600;
+            font-size: 15px;
+            font-weight: 700;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             transition: all 0.2s;
             white-space: nowrap;
         }
@@ -441,101 +529,202 @@
             background: #dc2626;
         }
 
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
         /* Content Area */
         .content-area {
             flex: 1;
             overflow-y: auto;
-            padding: 32px;
+            padding: 20px;
             background: var(--bg-primary);
         }
 
-        /* Stats Cards */
-        .stats-grid {
+        .view-container {
+            display: none;
+        }
+
+        .view-container.active {
+            display: block;
+        }
+
+        /* Dashboard Metrics */
+        .metrics-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
             margin-bottom: 32px;
         }
 
-        .stat-card {
+        .metric-card {
             background: var(--bg-secondary);
             border-radius: 12px;
-            padding: 24px;
+            padding: 28px;
             border: 1px solid var(--border-color);
             transition: all 0.2s;
         }
 
-        .stat-card:hover {
+        .metric-card:hover {
             box-shadow: var(--shadow-lg);
             transform: translateY(-2px);
         }
 
-        .stat-label {
-            font-size: 13px;
+        .metric-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .metric-label {
+            font-size: 14px;
             font-weight: 600;
             color: var(--text-tertiary);
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+
+        .metric-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .metric-value {
+            font-size: 48px;
+            font-weight: 900;
+            color: var(--text-primary);
+            line-height: 1;
             margin-bottom: 8px;
         }
 
-        .stat-value {
-            font-size: 32px;
-            font-weight: 800;
-            color: var(--text-primary);
-            line-height: 1;
-        }
-
-        .stat-change {
-            font-size: 12px;
-            margin-top: 8px;
+        .metric-change {
+            font-size: 13px;
             display: flex;
             align-items: center;
             gap: 4px;
+            color: var(--text-tertiary);
         }
 
-        .stat-change.positive {
+        .metric-change.positive {
             color: var(--success);
         }
 
-        /* Document Cards */
-        .documents-grid {
-            display: grid;
-            gap: 16px;
+        .metric-change.negative {
+            color: var(--danger);
         }
 
-        .document-card {
+        /* Chart Container */
+        .chart-container {
             background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
             border-radius: 12px;
+            padding: 28px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 32px;
+        }
+
+        .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .chart-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .chart-canvas-wrapper {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Table Browser */
+        .table-browser {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
             overflow: hidden;
-            transition: all 0.2s;
         }
 
-        .document-card:hover {
-            box-shadow: var(--shadow-lg);
-            border-color: var(--primary-light);
-        }
-
-        .document-header {
-            padding: 16px 20px;
-            background: var(--bg-primary);
+        .table-toolbar {
+            padding: 20px 24px;
             border-bottom: 1px solid var(--border-color);
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
         }
 
-        .document-id {
-            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
-            font-size: 12px;
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        .document-actions {
+        .table-actions {
             display: flex;
             gap: 8px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            max-height: 600px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            background: var(--bg-tertiary);
+            z-index: 10;
+        }
+
+        th {
+            padding: 16px 20px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        th:hover {
+            background: var(--bg-primary);
+        }
+
+        td {
+            padding: 16px 20px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        tr:hover td {
+            background: var(--bg-tertiary);
+        }
+
+        .checkbox-cell {
+            width: 40px;
+        }
+
+        .actions-cell {
+            width: 120px;
         }
 
         .icon-btn {
@@ -554,18 +743,180 @@
             color: var(--primary);
         }
 
-        .document-body {
+        .pagination {
+            padding: 20px 24px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .pagination-info {
+            font-size: 14px;
+            color: var(--text-tertiary);
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        /* Query Editor */
+        .query-editor-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            height: calc(100vh - 150px);
+        }
+
+        .query-history {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
             padding: 20px;
+            overflow-y: auto;
+        }
+
+        .history-header {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+        }
+
+        .history-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .history-item:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .query-editor-main {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .editor-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .editor-selects {
+            display: flex;
+            gap: 12px;
+        }
+
+        .editor-select {
+            padding: 10px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .editor-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        .code-editor {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor-tabs {
+            display: flex;
+            gap: 4px;
+            padding: 12px 12px 0;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .editor-tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-tertiary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .editor-tab.active {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .editor-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .code-textarea {
+            width: 100%;
+            height: 100%;
+            min-height: 300px;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: vertical;
+            outline: none;
+        }
+
+        .editor-results {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .results-header {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+        }
+
+        .results-content {
             font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
             font-size: 13px;
             line-height: 1.6;
             color: var(--text-secondary);
-            background: var(--bg-secondary);
-            overflow-x: auto;
-            word-wrap: break-word;
-        }
-
-        .document-body.pretty {
             white-space: pre-wrap;
         }
 
@@ -628,9 +979,10 @@
         }
 
         .modal-header h3 {
-            font-size: 20px;
-            font-weight: 700;
+            font-size: 28px;
+            font-weight: 900;
             color: var(--text-primary);
+            letter-spacing: -1px;
         }
 
         .modal-close {
@@ -674,10 +1026,10 @@
 
         .form-label {
             display: block;
-            font-size: 14px;
-            font-weight: 600;
+            font-size: 15px;
+            font-weight: 700;
             color: var(--text-secondary);
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
 
         .form-input {
@@ -688,6 +1040,8 @@
             font-size: 14px;
             font-family: inherit;
             transition: all 0.2s;
+            background: var(--bg-input);
+            color: var(--text-primary);
         }
 
         .form-input:focus {
@@ -700,6 +1054,7 @@
             font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
             resize: vertical;
             min-height: 200px;
+            border-radius: 8px;
         }
 
         .form-hint {
@@ -792,16 +1147,18 @@
         }
 
         .empty-state h3 {
-            font-size: 18px;
-            font-weight: 600;
+            font-size: 32px;
+            font-weight: 900;
             color: var(--text-primary);
-            margin-bottom: 8px;
+            margin-bottom: 12px;
+            letter-spacing: -1px;
         }
 
         .empty-state p {
-            font-size: 14px;
+            font-size: 18px;
             color: var(--text-tertiary);
-            margin-bottom: 24px;
+            margin-bottom: 32px;
+            font-weight: 500;
         }
 
         /* Loading */
@@ -858,7 +1215,6 @@
             justify-content: center;
             font-size: 18px;
             transition: all 0.2s;
-            margin-right: 12px;
         }
 
         .theme-switcher:hover {
@@ -870,56 +1226,246 @@
             transform: scale(0.95);
         }
 
-        /* Form inputs dark theme */
-        .form-input {
-            background: var(--bg-input);
+        /* Filters Panel */
+        .filters-panel {
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px 24px;
+            display: none;
+        }
+
+        .filters-panel.active {
+            display: block;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+
+        .filter-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        /* Columns Panel */
+        .columns-panel {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            min-width: 200px;
+            box-shadow: var(--shadow-lg);
+            display: none;
+            z-index: 100;
+        }
+
+        .columns-panel.active {
+            display: block;
+        }
+
+        .column-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .column-checkbox:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .column-checkbox input {
+            cursor: pointer;
+        }
+
+        .column-checkbox label {
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* View Mode Toggle */
+        .search-mode-toggle {
+            display: inline-flex;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 9999px;
+            padding: 4px;
+            gap: 4px;
+        }
+
+        .mode-btn {
+            padding: 8px 20px;
+            border: none;
+            background: transparent;
+            border-radius: 9999px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-tertiary);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .mode-btn:hover {
             color: var(--text-primary);
         }
 
-        .form-input::placeholder {
+        .mode-btn.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* Collection Delete Button */
+        .collection-delete-btn {
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: transparent;
             color: var(--text-muted);
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            padding: 0;
+        }
+
+        .collection-delete-btn:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .collection-item.active .collection-delete-btn {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .collection-item.active .collection-delete-btn:hover {
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
         }
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <div class="header">
-        <div class="header-content">
-            <div class="logo">
-                <div class="logo-icon">N</div>
-                <div class="logo-text">
-                    <h1>NexaDB</h1>
-                    <p>Next-Generation Database</p>
-                </div>
-            </div>
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <button class="theme-switcher" onclick="toggleTheme()" title="Toggle theme">
-                    <span id="themeIcon">☀️</span>
-                </button>
-                <div id="connectionStatus" class="connection-status status-disconnected">
-                    <span class="status-dot"></span>
-                    <span>Disconnected</span>
-                </div>
-            </div>
+    <!-- Floating Header -->
+    <div class="floating-header">
+        <button class="theme-switcher" onclick="toggleTheme()" title="Toggle theme">
+            <span id="themeIcon">☀️</span>
+        </button>
+        <div id="connectionStatus" class="connection-status status-disconnected">
+            <span class="status-dot"></span>
+            <span>Disconnected</span>
         </div>
     </div>
 
     <!-- Main Container -->
     <div class="container">
         <!-- Sidebar -->
-        <div class="sidebar">
-            <div class="sidebar-header">
-                <h3>Collections</h3>
-                <button class="new-collection-btn" onclick="showCreateCollectionModal()">
-                    <span>➕</span>
-                    <span>New Collection</span>
-                </button>
-                <input type="text" class="collection-search" placeholder="Search collections..." id="collectionSearch" oninput="filterCollections()">
+        <div class="sidebar" id="sidebar">
+            <!-- Toggle Button -->
+            <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"/>
+                </svg>
+            </button>
+
+            <!-- Logo -->
+            <div class="logo">
+                <div class="logo-icon">
+                    <img id="logoImage" src="../nexadb-web/public/logo-light.svg" alt="NexaDB Logo">
+                </div>
             </div>
-            <div class="collections-list" id="collectionsList">
-                <div class="empty-collections">
-                    <div class="empty-collections-icon">📦</div>
-                    <p>No collections yet</p>
+
+            <!-- Navigation Menu -->
+            <div class="nav-menu">
+                <div class="nav-item active" onclick="switchView('dashboard')">
+                    <div class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" rx="1"/>
+                            <rect x="14" y="3" width="7" height="7" rx="1"/>
+                            <rect x="14" y="14" width="7" height="7" rx="1"/>
+                            <rect x="3" y="14" width="7" height="7" rx="1"/>
+                        </svg>
+                    </div>
+                    <span>Dashboard</span>
+                </div>
+                <div class="nav-item" onclick="switchView('collections')">
+                    <div class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                        </svg>
+                    </div>
+                    <span>Collections</span>
+                </div>
+                <div class="nav-item" onclick="switchView('query')">
+                    <div class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="16 18 22 12 16 6"/>
+                            <polyline points="8 6 2 12 8 18"/>
+                        </svg>
+                    </div>
+                    <span>Query Editor</span>
+                </div>
+                <div class="nav-item" onclick="switchView('monitoring')">
+                    <div class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                        </svg>
+                    </div>
+                    <span>Monitoring</span>
+                </div>
+            </div>
+
+            <!-- Collections List (only visible in collections view) -->
+            <div id="sidebarCollections" style="display: none;">
+                <div class="sidebar-header">
+                    <h3>Collections</h3>
+                    <button class="new-collection-btn" onclick="showCreateCollectionModal()">
+                        <span>+</span>
+                        <span>New Collection</span>
+                    </button>
+                    <input type="text" class="collection-search" placeholder="Search collections..." id="collectionSearch" oninput="filterCollections()">
+                </div>
+                <div class="collections-list" id="collectionsList">
+                    <div class="empty-collections">
+                        <div class="empty-collections-icon">📦</div>
+                        <p>No collections yet</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -928,37 +1474,414 @@
         <div class="main-content">
             <div class="content-header">
                 <div class="content-title">
-                    <h2 id="contentTitle">Welcome to NexaDB</h2>
-                    <div class="content-subtitle" id="contentSubtitle">Select a collection to get started</div>
+                    <h2 id="contentTitle">Dashboard</h2>
+                    <div class="content-subtitle" id="contentSubtitle">Overview of your database</div>
                 </div>
                 <div class="toolbar" id="toolbar" style="display: none;">
-                    <button class="btn btn-success" onclick="showInsertDocumentModal()">
-                        <span>➕</span>
-                        <span>Insert</span>
-                    </button>
-                    <button class="btn btn-secondary" onclick="showQueryModal()">
-                        <span>🔍</span>
-                        <span>Query</span>
-                    </button>
-                    <button class="btn btn-secondary" onclick="showAggregateModal()">
-                        <span>📊</span>
-                        <span>Aggregate</span>
-                    </button>
-                    <button class="btn btn-danger" onclick="deleteCollection()">
-                        <span>🗑️</span>
-                        <span>Delete Collection</span>
-                    </button>
                 </div>
             </div>
-            <div class="content-area" id="contentArea">
-                <div class="empty-state">
-                    <div class="empty-state-icon">🚀</div>
-                    <h3>Welcome to NexaDB</h3>
-                    <p>Create a new collection or select an existing one to begin</p>
-                    <button class="btn btn-primary" onclick="showCreateCollectionModal()">
-                        <span>➕</span>
-                        <span>Create Collection</span>
-                    </button>
+
+            <div class="content-area">
+                <!-- Dashboard View -->
+                <div id="dashboardView" class="view-container active">
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">Documents</div>
+                                <div class="metric-icon" style="background: rgba(139, 92, 246, 0.15); color: var(--primary);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14 2 14 8 20 8"/>
+                                        <line x1="16" y1="13" x2="8" y2="13"/>
+                                        <line x1="16" y1="17" x2="8" y2="17"/>
+                                        <polyline points="10 9 9 9 8 9"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value" id="totalDocuments">0</div>
+                            <div class="metric-change positive" id="documentsChange">
+                                <span>↑ 0%</span>
+                                <span>from last hour</span>
+                            </div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">Collections</div>
+                                <div class="metric-icon" style="background: rgba(99, 102, 241, 0.15); color: var(--secondary);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value" id="totalCollections">0</div>
+                            <div class="metric-change" id="collectionsChange">
+                                <span>No change</span>
+                            </div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">Storage</div>
+                                <div class="metric-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--success);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value" id="totalStorage">0 KB</div>
+                            <div class="metric-change" id="storageChange">
+                                <span>Estimated size</span>
+                            </div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">Operations</div>
+                                <div class="metric-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--warning);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value" id="totalOperations">0</div>
+                            <div class="metric-change positive" id="operationsChange">
+                                <span>Per minute</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Operations Over Time</div>
+                            <div>
+                                <select class="editor-select" id="chartTimeRange" onchange="updateChart()">
+                                    <option value="1h">Last Hour</option>
+                                    <option value="6h">Last 6 Hours</option>
+                                    <option value="24h">Last 24 Hours</option>
+                                    <option value="7d">Last 7 Days</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="chart-canvas-wrapper">
+                            <canvas id="operationsChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Recent Collections</div>
+                        </div>
+                        <div id="recentCollectionsList">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📦</div>
+                                <h3>No collections yet</h3>
+                                <p>Create your first collection to get started</p>
+                                <button class="btn btn-primary" onclick="showCreateCollectionModal()">
+                                    <span>+</span>
+                                    <span>Create Collection</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Collections View -->
+                <div id="collectionsView" class="view-container">
+                    <div class="table-browser">
+                        <div class="table-toolbar">
+                            <div class="table-actions">
+                                <div class="search-mode-toggle" style="margin-right: 12px;">
+                                    <button class="mode-btn active" id="jsonViewBtn" onclick="setViewMode('json')">
+                                        JSON
+                                    </button>
+                                    <button class="mode-btn" id="tableViewBtn" onclick="setViewMode('table')">
+                                        Table
+                                    </button>
+                                </div>
+                                <button class="btn btn-sm btn-secondary" onclick="toggleFilters()">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                                    </svg>
+                                    <span>Filters</span>
+                                </button>
+                                <button class="btn btn-sm btn-secondary" onclick="toggleSort()">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="12" y1="5" x2="12" y2="19"/>
+                                        <polyline points="19 12 12 19 5 12"/>
+                                    </svg>
+                                    <span>Sort</span>
+                                </button>
+                                <button class="btn btn-sm btn-secondary" onclick="toggleColumns()" style="position: relative;" id="columnsBtn">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="21" y1="10" x2="3" y2="10"/>
+                                        <line x1="21" y1="6" x2="3" y2="6"/>
+                                        <line x1="21" y1="14" x2="3" y2="14"/>
+                                        <line x1="21" y1="18" x2="3" y2="18"/>
+                                    </svg>
+                                    <span>Columns</span>
+                                    <div class="columns-panel" id="columnsPanel">
+                                        <div class="column-checkbox">
+                                            <input type="checkbox" id="col_id" checked onchange="toggleColumn('_id')">
+                                            <label for="col_id">ID</label>
+                                        </div>
+                                        <div class="column-checkbox">
+                                            <input type="checkbox" id="col_created" checked onchange="toggleColumn('_created_at')">
+                                            <label for="col_created">Created</label>
+                                        </div>
+                                        <div class="column-checkbox">
+                                            <input type="checkbox" id="col_updated" checked onchange="toggleColumn('_updated_at')">
+                                            <label for="col_updated">Updated</label>
+                                        </div>
+                                    </div>
+                                </button>
+                            </div>
+                            <div class="table-actions">
+                                <button class="btn btn-sm btn-success" onclick="showInsertDocumentModal()">
+                                    <span>+</span>
+                                    <span>Add Record</span>
+                                </button>
+                                <button class="btn btn-sm btn-secondary" onclick="loadDocuments()">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="23 4 23 10 17 10"/>
+                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                    </svg>
+                                    <span>Refresh</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="filters-panel" id="filtersPanel">
+                            <div class="filter-row">
+                                <select class="filter-select" id="filterField">
+                                    <option value="">Select field...</option>
+                                    <option value="_id">ID</option>
+                                    <option value="_created_at">Created At</option>
+                                    <option value="_updated_at">Updated At</option>
+                                </select>
+                                <select class="filter-select" id="filterOperator">
+                                    <option value="$eq">equals</option>
+                                    <option value="$ne">not equals</option>
+                                    <option value="$gt">greater than</option>
+                                    <option value="$gte">greater than or equal</option>
+                                    <option value="$lt">less than</option>
+                                    <option value="$lte">less than or equal</option>
+                                    <option value="$regex">contains</option>
+                                </select>
+                                <input type="text" class="filter-input" id="filterValue" placeholder="Value...">
+                                <button class="btn btn-sm btn-primary" onclick="applyFilter()">Apply</button>
+                                <button class="btn btn-sm btn-secondary" onclick="clearFilters()">Clear</button>
+                            </div>
+                        </div>
+
+                        <div class="filters-panel" id="sortPanel">
+                            <div class="filter-row">
+                                <select class="filter-select" id="sortField">
+                                    <option value="">Select field...</option>
+                                    <option value="_id">ID</option>
+                                    <option value="_created_at">Created At</option>
+                                    <option value="_updated_at">Updated At</option>
+                                </select>
+                                <select class="filter-select" id="sortOrder">
+                                    <option value="1">Ascending</option>
+                                    <option value="-1">Descending</option>
+                                </select>
+                                <button class="btn btn-sm btn-primary" onclick="applySort()">Apply</button>
+                                <button class="btn btn-sm btn-secondary" onclick="clearSort()">Clear</button>
+                            </div>
+                        </div>
+
+                        <div class="table-container" id="tableContainer">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">
+                                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+                                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                        <path d="M3 9h18M9 3v18"/>
+                                    </svg>
+                                </div>
+                                <h3>Select a collection</h3>
+                                <p>Choose a collection from the sidebar to view its documents</p>
+                            </div>
+                        </div>
+
+                        <div class="pagination" id="pagination" style="display: none;">
+                            <div class="pagination-info" id="paginationInfo">
+                                Showing 0-0 of 0 rows
+                            </div>
+                            <div class="pagination-controls">
+                                <button class="btn btn-sm btn-secondary" onclick="previousPage()">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="15 18 9 12 15 6"/>
+                                    </svg>
+                                </button>
+                                <span id="pageNumbers" style="font-size: 14px; color: var(--text-secondary); padding: 0 12px;">Page 1</span>
+                                <button class="btn btn-sm btn-secondary" onclick="nextPage()">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="9 18 15 12 9 6"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Query Editor View -->
+                <div id="queryView" class="view-container">
+                    <div class="query-editor-container">
+                        <div class="query-history">
+                            <div class="history-header">Query History</div>
+                            <div id="queryHistoryList">
+                                <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+                                    <p>No queries yet</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="query-editor-main">
+                            <div class="editor-toolbar">
+                                <div class="editor-selects">
+                                    <select class="editor-select" id="queryEditorCollection" onchange="updateEditorCollection()">
+                                        <option value="">Select collection...</option>
+                                    </select>
+                                    <select class="editor-select" id="queryTemplate" onchange="loadQueryTemplate()">
+                                        <option value="">Quick Templates...</option>
+                                        <option value="find_all">Find All</option>
+                                        <option value="find_with_filter">Find with Filter</option>
+                                        <option value="aggregation">Aggregation Pipeline</option>
+                                    </select>
+                                </div>
+                                <div style="display: flex; gap: 12px;">
+                                    <button class="btn btn-sm btn-primary" onclick="executeEditorQuery()">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polygon points="5 3 19 12 5 21 5 3"/>
+                                        </svg>
+                                        <span>Run</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-secondary" onclick="clearEditor()">Clear</button>
+                                </div>
+                            </div>
+
+                            <div class="code-editor">
+                                <div class="editor-tabs">
+                                    <button class="editor-tab active">Query</button>
+                                </div>
+                                <div class="editor-content">
+                                    <textarea class="code-textarea" id="queryEditorTextarea" placeholder='Enter your query in JSON format, for example:
+
+{
+  "age": {"$gt": 25},
+  "status": "active"
+}
+
+Or use aggregation pipeline:
+
+[
+  {"$match": {"age": {"$gte": 30}}},
+  {"$group": {"_id": "$city", "count": {"$sum": 1}}}
+]'>{ }</textarea>
+                                </div>
+                            </div>
+
+                            <div class="editor-results" id="editorResults" style="display: none;">
+                                <div class="results-header">Results</div>
+                                <div class="results-content" id="editorResultsContent"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monitoring View -->
+                <div id="monitoringView" class="view-container">
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">Avg Response Time</div>
+                                <div class="metric-icon" style="background: rgba(139, 92, 246, 0.15); color: var(--primary);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <polyline points="12 6 12 12 16 14"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value" id="avgResponseTime">0ms</div>
+                            <div class="metric-change positive">
+                                <span>Last 100 operations</span>
+                            </div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">Active Connections</div>
+                                <div class="metric-icon" style="background: rgba(99, 102, 241, 0.15); color: var(--secondary);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                        <circle cx="9" cy="7" r="4"/>
+                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value" id="activeConnections">1</div>
+                            <div class="metric-change">
+                                <span>Current session</span>
+                            </div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">Cache Hit Rate</div>
+                                <div class="metric-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--success);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                        <polyline points="22 4 12 14.01 9 11.01"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value" id="cacheHitRate">--%</div>
+                            <div class="metric-change">
+                                <span>N/A for HTTP mode</span>
+                            </div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">Uptime</div>
+                                <div class="metric-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--warning);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value" style="font-size: 36px;" id="uptime">0h 0m</div>
+                            <div class="metric-change positive">
+                                <span>Since connection</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Real-time Operations</div>
+                        </div>
+                        <div class="chart-canvas-wrapper">
+                            <canvas id="monitoringChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Database Status</div>
+                        </div>
+                        <div id="databaseStatus" style="padding: 20px;">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                                <p>Loading status...</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1010,52 +1933,6 @@
         </div>
     </div>
 
-    <!-- Query Modal -->
-    <div class="modal-overlay" id="queryModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h3>Query Documents</h3>
-                <button class="modal-close" onclick="closeModal('queryModal')">✕</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label class="form-label">Query (JSON)</label>
-                    <textarea class="form-input" id="queryData" placeholder='{\n  "age": {"$gt": 25},\n  "status": "active"\n}'>{ }</textarea>
-                    <p class="form-hint">Use MongoDB-style query operators</p>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Limit</label>
-                    <input type="number" class="form-input" id="queryLimit" value="100" min="1">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('queryModal')">Cancel</button>
-                <button class="btn btn-primary" onclick="executeQuery()">Execute Query</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Aggregate Modal -->
-    <div class="modal-overlay" id="aggregateModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h3>Aggregation Pipeline</h3>
-                <button class="modal-close" onclick="closeModal('aggregateModal')">✕</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label class="form-label">Pipeline (JSON Array)</label>
-                    <textarea class="form-input" id="aggregateData" placeholder='[\n  {"$match": {"age": {"$gte": 30}}},\n  {"$group": {"_id": "$city", "count": {"$sum": 1}}}\n]'>[ ]</textarea>
-                    <p class="form-hint">MongoDB-style aggregation pipeline</p>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('aggregateModal')">Cancel</button>
-                <button class="btn btn-primary" onclick="executeAggregate()">Execute Pipeline</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Edit Document Modal -->
     <div class="modal-overlay" id="editDocumentModal">
         <div class="modal">
@@ -1081,13 +1958,44 @@
         </div>
     </div>
 
+    <!-- Delete Collection Modal -->
+    <div class="modal-overlay" id="deleteCollectionModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Delete Collection</h3>
+                <button class="modal-close" onclick="closeModal('deleteCollectionModal'); clearDeleteInput();">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="padding: 8px 16px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; margin-bottom: 24px;">
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                        <div style="color: var(--danger); font-size: 24px; line-height: 1;">⚠️</div>
+                        <div>
+                            <div style="font-weight: 700; color: var(--danger); margin-bottom: 4px;">Warning: This action cannot be undone!</div>
+                            <div style="font-size: 14px; color: var(--text-secondary);">
+                                You are about to permanently delete the collection "<strong id="deleteCollectionName"></strong>" and all of its documents.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Type <strong>DELETE</strong> to confirm *</label>
+                    <input type="text" class="form-input" id="deleteConfirmationInput" placeholder="Type DELETE to confirm" autocomplete="off">
+                    <p class="form-hint">This action is permanent and cannot be reversed</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('deleteCollectionModal'); clearDeleteInput();">Cancel</button>
+                <button class="btn btn-danger" id="deleteCollectionBtn" onclick="confirmDeleteCollection()" disabled>Delete Collection</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
     <script>
         // Theme Management
         function initTheme() {
-            // Check for saved theme preference or default to 'dark'
             const savedTheme = localStorage.getItem('nexadb-theme') || 'dark';
             setTheme(savedTheme);
         }
@@ -1095,11 +2003,19 @@
         function setTheme(theme) {
             document.documentElement.setAttribute('data-theme', theme);
             localStorage.setItem('nexadb-theme', theme);
-
-            // Update icon
             const themeIcon = document.getElementById('themeIcon');
             if (themeIcon) {
                 themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+            }
+
+            // Update logo based on theme
+            const logoImage = document.getElementById('logoImage');
+            if (logoImage) {
+                // Dark theme uses light logo (white/light colored)
+                // Light theme uses dark logo (dark colored)
+                logoImage.src = theme === 'dark'
+                    ? '../nexadb-web/public/logo-light.svg'
+                    : '../nexadb-web/public/logo-dark.svg';
             }
         }
 
@@ -1109,13 +2025,105 @@
             setTheme(newTheme);
         }
 
+        // Sidebar Toggle
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+
+            // Persist state
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            localStorage.setItem('nexadb-sidebar-collapsed', isCollapsed);
+        }
+
         // State
         const state = {
             connected: false,
+            currentView: 'dashboard',
             currentCollection: null,
             collections: [],
-            baseUrl: 'http://localhost:6969'
+            baseUrl: 'http://localhost:6969',
+            currentPage: 1,
+            pageSize: 50,
+            totalDocuments: 0,
+            currentFilter: {},
+            currentSort: {},
+            visibleColumns: ['_id', '_created_at', '_updated_at'],
+            queryHistory: [],
+            operationsData: [],
+            connectedAt: null,
+            operationsCount: 0,
+            viewMode: 'json', // 'json' or 'table'
+            operationsTimeline: {
+                '1h': [],
+                '6h': [],
+                '24h': [],
+                '7d': []
+            },
+            collectionToDelete: null
         };
+
+        // View Switching
+        function switchView(viewName) {
+            state.currentView = viewName;
+
+            // Update nav items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+
+            // Hide all views
+            document.querySelectorAll('.view-container').forEach(view => {
+                view.classList.remove('active');
+            });
+
+            // Show selected view
+            const views = {
+                'dashboard': 'dashboardView',
+                'collections': 'collectionsView',
+                'query': 'queryView',
+                'monitoring': 'monitoringView'
+            };
+
+            document.getElementById(views[viewName]).classList.add('active');
+
+            // Update header
+            const titles = {
+                'dashboard': 'Dashboard',
+                'collections': 'Collections',
+                'query': 'Query Editor',
+                'monitoring': 'Monitoring'
+            };
+
+            const subtitles = {
+                'dashboard': 'Overview of your database',
+                'collections': 'Browse and manage your data',
+                'query': 'Execute queries and view results',
+                'monitoring': 'Real-time performance metrics'
+            };
+
+            document.getElementById('contentTitle').textContent = titles[viewName];
+            document.getElementById('contentSubtitle').textContent = subtitles[viewName];
+
+            // Show/hide sidebar collections
+            if (viewName === 'collections') {
+                document.getElementById('sidebarCollections').style.display = 'flex';
+                document.getElementById('sidebarCollections').style.flexDirection = 'column';
+                document.getElementById('sidebarCollections').style.flex = '1';
+                loadCollections();
+            } else {
+                document.getElementById('sidebarCollections').style.display = 'none';
+            }
+
+            // Initialize view-specific content
+            if (viewName === 'dashboard') {
+                loadDashboard();
+            } else if (viewName === 'query') {
+                loadQueryEditor();
+            } else if (viewName === 'monitoring') {
+                loadMonitoring();
+            }
+        }
 
         // API Helper
         async function apiCall(method, path, data = null) {
@@ -1126,9 +2134,38 @@
             };
             if (data) options.body = JSON.stringify(data);
 
+            const startTime = Date.now();
             const response = await fetch(url, options);
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Request failed');
+
+            // Track operation with timing
+            const endTime = Date.now();
+            const operation = {
+                time: endTime,
+                type: method,
+                duration: endTime - startTime
+            };
+
+            state.operationsCount++;
+            state.operationsData.push(operation);
+
+            // Track in timeline buckets
+            ['1h', '6h', '24h', '7d'].forEach(range => {
+                state.operationsTimeline[range].push(operation);
+
+                // Cleanup old data
+                const cutoff = {
+                    '1h': 60 * 60 * 1000,
+                    '6h': 6 * 60 * 60 * 1000,
+                    '24h': 24 * 60 * 60 * 1000,
+                    '7d': 7 * 24 * 60 * 60 * 1000
+                }[range];
+
+                const threshold = Date.now() - cutoff;
+                state.operationsTimeline[range] = state.operationsTimeline[range].filter(op => op.time > threshold);
+            });
+
             return result;
         }
 
@@ -1137,8 +2174,10 @@
             try {
                 const status = await apiCall('GET', '/status');
                 state.connected = true;
+                state.connectedAt = Date.now();
                 updateConnectionStatus(true, `Connected to ${status.database}`);
                 loadCollections();
+                loadDashboard();
                 showToast('success', 'Connected', `Connected to ${status.database} v${status.version}`);
             } catch (error) {
                 state.connected = false;
@@ -1153,12 +2192,281 @@
             statusEl.innerHTML = `<span class="status-dot"></span><span>${message}</span>`;
         }
 
-        // Collections
+        // Dashboard Functions
+        async function loadDashboard() {
+            try {
+                const result = await apiCall('GET', '/collections');
+                state.collections = result.collections;
+
+                // Update metrics
+                document.getElementById('totalCollections').textContent = state.collections.length;
+
+                // Load document count
+                let totalDocs = 0;
+                let totalStorage = 0;
+
+                for (const collection of state.collections) {
+                    try {
+                        const collResult = await apiCall('GET', `/collections/${collection}?query={}&limit=1`);
+                        totalDocs += collResult.count || 0;
+                        // Estimate storage (rough calculation)
+                        totalStorage += (collResult.count || 0) * 0.5; // Assume 0.5KB per document
+                    } catch (err) {
+                        console.error(`Failed to load stats for ${collection}`);
+                    }
+                }
+
+                document.getElementById('totalDocuments').textContent = totalDocs;
+                document.getElementById('totalStorage').textContent = totalStorage.toFixed(2) + ' KB';
+                document.getElementById('totalOperations').textContent = state.operationsCount;
+
+                // Update operations chart
+                updateOperationsChart();
+
+                // Update recent collections list
+                updateRecentCollections();
+
+            } catch (error) {
+                console.error('Failed to load dashboard:', error);
+            }
+        }
+
+        function updateRecentCollections() {
+            const container = document.getElementById('recentCollectionsList');
+
+            if (state.collections.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📦</div>
+                        <h3>No collections yet</h3>
+                        <p>Create your first collection to get started</p>
+                        <button class="btn btn-primary" onclick="showCreateCollectionModal()">
+                            <span>+</span>
+                            <span>Create Collection</span>
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div style="padding: 20px;">
+                    ${state.collections.map(name => `
+                        <div style="padding: 16px; margin-bottom: 8px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-size: 16px; font-weight: 700; color: var(--text-primary);">${name}</div>
+                                <div style="font-size: 13px; color: var(--text-tertiary); margin-top: 4px;">Collection</div>
+                            </div>
+                            <button class="btn btn-sm btn-primary" onclick="viewCollection('${name}')">View</button>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function viewCollection(name) {
+            selectCollection(name);
+            switchView('collections');
+        }
+
+        // Chart Functions
+        let operationsChart = null;
+        let monitoringChart = null;
+
+        function updateOperationsChart() {
+            const ctx = document.getElementById('operationsChart');
+            if (!ctx) return;
+
+            const range = document.getElementById('chartTimeRange')?.value || '1h';
+            const operations = state.operationsTimeline[range] || [];
+
+            const now = Date.now();
+            const labels = [];
+            const data = [];
+
+            // Define bucket configuration based on range
+            const config = {
+                '1h': { buckets: 12, interval: 5 * 60 * 1000, format: { hour: '2-digit', minute: '2-digit' } },
+                '6h': { buckets: 12, interval: 30 * 60 * 1000, format: { hour: '2-digit', minute: '2-digit' } },
+                '24h': { buckets: 24, interval: 60 * 60 * 1000, format: { hour: '2-digit', minute: '2-digit' } },
+                '7d': { buckets: 14, interval: 12 * 60 * 60 * 1000, format: { month: 'short', day: 'numeric', hour: '2-digit' } }
+            };
+
+            const { buckets, interval, format } = config[range];
+
+            // Create time buckets and count operations in each
+            for (let i = buckets - 1; i >= 0; i--) {
+                const bucketEnd = now - (i * interval);
+                const bucketStart = bucketEnd - interval;
+                const time = new Date(bucketEnd);
+
+                labels.push(time.toLocaleTimeString('en-US', format));
+
+                // Count operations in this bucket
+                const count = operations.filter(op => op.time >= bucketStart && op.time < bucketEnd).length;
+                data.push(count);
+            }
+
+            if (operationsChart) {
+                operationsChart.destroy();
+            }
+
+            operationsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Operations',
+                        data: data,
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                precision: 0
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                maxRotation: 45,
+                                minRotation: 0
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Add updateChart function for dropdown
+        function updateChart() {
+            updateOperationsChart();
+        }
+
+        function updateMonitoringChart() {
+            const ctx = document.getElementById('monitoringChart');
+            if (!ctx) return;
+
+            const now = Date.now();
+            const labels = [];
+            const readData = [];
+            const writeData = [];
+
+            // Use last 30 data points (1 minute of data at 2-second intervals)
+            const recentOps = state.operationsData.slice(-30);
+
+            for (let i = 29; i >= 0; i--) {
+                const bucketEnd = now - (i * 2 * 1000);
+                const bucketStart = bucketEnd - 2000;
+                const time = new Date(bucketEnd);
+
+                labels.push(time.toLocaleTimeString('en-US', { minute: '2-digit', second: '2-digit' }));
+
+                // Count read (GET) and write (POST/PUT/DELETE) operations in this 2-second bucket
+                const bucketOps = recentOps.filter(op => op.time >= bucketStart && op.time < bucketEnd);
+                const reads = bucketOps.filter(op => op.type === 'GET').length;
+                const writes = bucketOps.filter(op => ['POST', 'PUT', 'DELETE'].includes(op.type)).length;
+
+                readData.push(reads);
+                writeData.push(writes);
+            }
+
+            if (monitoringChart) {
+                monitoringChart.destroy();
+            }
+
+            monitoringChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Read Operations',
+                            data: readData,
+                            borderColor: '#8b5cf6',
+                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Write Operations',
+                            data: writeData,
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: '#94a3b8'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                precision: 0
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Collections Functions
         async function loadCollections() {
             try {
                 const result = await apiCall('GET', '/collections');
                 state.collections = result.collections;
                 renderCollections();
+
+                // Update query editor collection dropdown
+                const select = document.getElementById('queryEditorCollection');
+                if (select) {
+                    select.innerHTML = '<option value="">Select collection...</option>' +
+                        state.collections.map(name => `<option value="${name}">${name}</option>`).join('');
+                }
             } catch (error) {
                 showToast('error', 'Error', 'Failed to load collections');
             }
@@ -1169,7 +2477,12 @@
             if (state.collections.length === 0) {
                 container.innerHTML = `
                     <div class="empty-collections">
-                        <div class="empty-collections-icon">📦</div>
+                        <div class="empty-collections-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.5;">
+                                <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                                <path d="M3 8h18M8 3v18" stroke="currentColor" stroke-width="1.5"/>
+                            </svg>
+                        </div>
                         <p>No collections yet</p>
                     </div>
                 `;
@@ -1177,17 +2490,20 @@
             }
 
             container.innerHTML = state.collections.map(name => `
-                <div class="collection-item ${name === state.currentCollection ? 'active' : ''}"
-                     onclick="selectCollection('${name}')">
-                    <div class="collection-info">
-                        <span class="collection-icon">📁</span>
+                <div class="collection-item ${name === state.currentCollection ? 'active' : ''}">
+                    <div class="collection-info" onclick="selectCollection('${name}')" style="flex: 1; cursor: pointer;">
+                        <span class="collection-icon">□</span>
                         <span>${name}</span>
                     </div>
-                    <span class="collection-count" id="count-${name}">0</span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="collection-count" id="count-${name}">0</span>
+                        <button class="collection-delete-btn" onclick="event.stopPropagation(); deleteCollection('${name}')" title="Delete collection">
+                            ×
+                        </button>
+                    </div>
                 </div>
             `).join('');
 
-            // Load counts
             state.collections.forEach(name => loadCollectionCount(name));
         }
 
@@ -1212,38 +2528,69 @@
 
         async function selectCollection(name) {
             state.currentCollection = name;
-            document.getElementById('contentTitle').textContent = name;
-            document.getElementById('contentSubtitle').textContent = 'Loading documents...';
-            document.getElementById('toolbar').style.display = 'flex';
+            state.currentPage = 1;
             renderCollections();
             loadDocuments();
         }
 
         async function loadDocuments() {
-            const contentArea = document.getElementById('contentArea');
-            contentArea.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading documents...</p></div>';
+            const container = document.getElementById('tableContainer');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading documents...</p></div>';
 
             try {
-                const result = await apiCall('GET', `/collections/${state.currentCollection}?query={}&limit=100`);
-                document.getElementById('contentSubtitle').textContent = `${result.count} documents`;
-                currentDocuments = result.documents;
-                renderDocuments(result.documents);
+                const skip = (state.currentPage - 1) * state.pageSize;
+                const filterQuery = Object.keys(state.currentFilter).length > 0 ?
+                    JSON.stringify(state.currentFilter) : '{}';
+
+                // Build URL with sort if present
+                let url = `/collections/${state.currentCollection}?query=${encodeURIComponent(filterQuery)}&limit=${state.pageSize}&skip=${skip}`;
+
+                if (Object.keys(state.currentSort).length > 0) {
+                    url += `&sort=${encodeURIComponent(JSON.stringify(state.currentSort))}`;
+                }
+
+                const result = await apiCall('GET', url);
+
+                state.totalDocuments = result.count;
+                if (state.viewMode === 'json') {
+                    renderDocumentsJSON(result.documents);
+                } else {
+                    renderDocumentsTable(result.documents);
+                }
+                updatePagination();
             } catch (error) {
-                contentArea.innerHTML = `<div class="empty-state"><h3>Error</h3><p>${error.message}</p></div>`;
+                container.innerHTML = `<div class="empty-state"><h3>Error</h3><p>${error.message}</p></div>`;
             }
         }
 
-        function renderDocuments(documents) {
-            const contentArea = document.getElementById('contentArea');
+        function setViewMode(mode) {
+            state.viewMode = mode;
+            document.getElementById('jsonViewBtn').classList.toggle('active', mode === 'json');
+            document.getElementById('tableViewBtn').classList.toggle('active', mode === 'table');
+
+            // Hide columns button in JSON view
+            const columnsBtn = document.getElementById('columnsBtn');
+            columnsBtn.style.display = mode === 'table' ? 'inline-flex' : 'none';
+
+            loadDocuments();
+        }
+
+        function renderDocumentsJSON(documents) {
+            const container = document.getElementById('tableContainer');
 
             if (documents.length === 0) {
-                contentArea.innerHTML = `
+                container.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">📭</div>
+                        <div class="empty-state-icon">
+                            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+                                <rect x="4" y="3" width="16" height="18" rx="2"/>
+                                <path d="M8 7h8M8 11h8M8 15h5"/>
+                            </svg>
+                        </div>
                         <h3>No documents found</h3>
                         <p>This collection is empty. Start by inserting your first document.</p>
                         <button class="btn btn-primary" onclick="showInsertDocumentModal()">
-                            <span>➕</span>
+                            <span>+</span>
                             <span>Insert Document</span>
                         </button>
                     </div>
@@ -1251,52 +2598,243 @@
                 return;
             }
 
-            contentArea.innerHTML = `
-                <div class="documents-grid">
+            container.innerHTML = `
+                <div style="padding: 20px;">
                     ${documents.map((doc, index) => `
-                        <div class="document-card">
-                            <div class="document-header">
-                                <span class="document-id">ID: ${doc._id}</span>
-                                <div class="document-actions">
-                                    <button class="icon-btn" onclick='togglePrettyPrint(${index})' title="Toggle Pretty Print">📋</button>
-                                    <button class="icon-btn" onclick='editDocument("${doc._id}", ${JSON.stringify(doc).replace(/'/g, "&apos;")})' title="Edit">✏️</button>
-                                    <button class="icon-btn" onclick='deleteDocument("${doc._id}")' title="Delete">🗑️</button>
+                        <div style="margin-bottom: 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
+                            <div style="padding: 12px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                                <div style="font-size: 14px; font-weight: 700; color: var(--text-secondary);">Document ${(state.currentPage - 1) * state.pageSize + index + 1}</div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="icon-btn" onclick='editDocumentFromTable(${JSON.stringify(doc).replace(/'/g, "&apos;")})' title="Edit">✎</button>
+                                    <button class="icon-btn" onclick='deleteDocument("${doc._id}")' title="Delete">×</button>
                                 </div>
                             </div>
-                            <div class="document-body" id="doc-body-${index}">${formatJSON(doc, false)}</div>
+                            <div style="padding: 20px; font-family: 'SF Mono', 'Monaco', 'Courier New', monospace; font-size: 13px; line-height: 1.8; color: var(--text-secondary); overflow-x: auto;">
+                                <pre style="margin: 0;">${syntaxHighlightJSON(doc)}</pre>
+                            </div>
                         </div>
                     `).join('')}
                 </div>
             `;
+
+            document.getElementById('pagination').style.display = 'flex';
         }
 
-        function formatJSON(obj, pretty = false) {
-            const jsonStr = pretty ? JSON.stringify(obj, null, 2) : JSON.stringify(obj);
-            return jsonStr
-                .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
-                .replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>')
-                .replace(/: (\d+)/g, ': <span class="json-number">$1</span>')
-                .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
-                .replace(/: null/g, ': <span class="json-null">null</span>');
+        function syntaxHighlightJSON(obj) {
+            let json = JSON.stringify(obj, null, 2);
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                let cls = 'json-number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'json-key';
+                    } else {
+                        cls = 'json-string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'json-boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'json-null';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
         }
 
-        // Store current documents for toggling
-        let currentDocuments = [];
+        function renderDocumentsTable(documents) {
+            const container = document.getElementById('tableContainer');
 
-        function togglePrettyPrint(index) {
-            const bodyEl = document.getElementById(`doc-body-${index}`);
-            const isPretty = bodyEl.classList.contains('pretty');
+            if (documents.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+                                <rect x="4" y="3" width="16" height="18" rx="2"/>
+                                <path d="M8 7h8M8 11h8M8 15h5"/>
+                            </svg>
+                        </div>
+                        <h3>No documents found</h3>
+                        <p>This collection is empty. Start by inserting your first document.</p>
+                        <button class="btn btn-primary" onclick="showInsertDocumentModal()">
+                            <span>+</span>
+                            <span>Insert Document</span>
+                        </button>
+                    </div>
+                `;
+                return;
+            }
 
-            if (isPretty) {
-                // Switch to compact
-                bodyEl.classList.remove('pretty');
-                bodyEl.innerHTML = formatJSON(currentDocuments[index], false);
-            } else {
-                // Switch to pretty
-                bodyEl.classList.add('pretty');
-                bodyEl.innerHTML = formatJSON(currentDocuments[index], true);
+            // Get all unique keys from documents
+            const allKeys = new Set();
+            documents.forEach(doc => {
+                Object.keys(doc).forEach(key => allKeys.add(key));
+            });
+
+            const keys = Array.from(allKeys).filter(key => state.visibleColumns.includes(key) || !['_id', '_created_at', '_updated_at'].includes(key));
+
+            container.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell"><input type="checkbox" onclick="toggleSelectAll(this)"></th>
+                            ${keys.map(key => `<th>${key}</th>`).join('')}
+                            <th class="actions-cell">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${documents.map(doc => `
+                            <tr>
+                                <td class="checkbox-cell"><input type="checkbox" class="row-checkbox"></td>
+                                ${keys.map(key => `<td title="${JSON.stringify(doc[key]) || ''}">${formatValue(doc[key])}</td>`).join('')}
+                                <td class="actions-cell">
+                                    <button class="icon-btn" onclick='editDocumentFromTable(${JSON.stringify(doc).replace(/'/g, "&apos;")})' title="Edit">✎</button>
+                                    <button class="icon-btn" onclick='deleteDocument("${doc._id}")' title="Delete">×</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('pagination').style.display = 'flex';
+        }
+
+        function formatValue(value) {
+            if (value === null || value === undefined) return '<span class="json-null">null</span>';
+            if (typeof value === 'boolean') return `<span class="json-boolean">${value}</span>`;
+            if (typeof value === 'number') return `<span class="json-number">${value}</span>`;
+            if (typeof value === 'object') return `<span class="json-string">${JSON.stringify(value)}</span>`;
+            if (typeof value === 'string' && value.length > 50) return `<span class="json-string">${value.substring(0, 50)}...</span>`;
+            return `<span class="json-string">${value}</span>`;
+        }
+
+        function toggleSelectAll(checkbox) {
+            document.querySelectorAll('.row-checkbox').forEach(cb => {
+                cb.checked = checkbox.checked;
+            });
+        }
+
+        function updatePagination() {
+            const totalPages = Math.ceil(state.totalDocuments / state.pageSize);
+            const start = (state.currentPage - 1) * state.pageSize + 1;
+            const end = Math.min(state.currentPage * state.pageSize, state.totalDocuments);
+
+            document.getElementById('paginationInfo').textContent =
+                `Showing ${start}-${end} of ${state.totalDocuments} rows`;
+
+            document.getElementById('pageNumbers').textContent =
+                `Page ${state.currentPage} of ${totalPages}`;
+        }
+
+        function previousPage() {
+            if (state.currentPage > 1) {
+                state.currentPage--;
+                loadDocuments();
             }
         }
+
+        function nextPage() {
+            const totalPages = Math.ceil(state.totalDocuments / state.pageSize);
+            if (state.currentPage < totalPages) {
+                state.currentPage++;
+                loadDocuments();
+            }
+        }
+
+        // Filter Functions
+        function toggleFilters() {
+            const panel = document.getElementById('filtersPanel');
+            panel.classList.toggle('active');
+        }
+
+        function applyFilter() {
+            const field = document.getElementById('filterField').value;
+            const operator = document.getElementById('filterOperator').value;
+            const value = document.getElementById('filterValue').value;
+
+            if (!field || !value) {
+                showToast('error', 'Error', 'Please select field and enter value');
+                return;
+            }
+
+            if (operator === '$regex') {
+                state.currentFilter[field] = { [operator]: value };
+            } else if (operator === '$eq') {
+                state.currentFilter[field] = value;
+            } else {
+                // Try to parse as number
+                const numValue = !isNaN(value) ? Number(value) : value;
+                state.currentFilter[field] = { [operator]: numValue };
+            }
+
+            state.currentPage = 1;
+            loadDocuments();
+            showToast('success', 'Filter Applied', `Filtering by ${field}`);
+        }
+
+        function clearFilters() {
+            state.currentFilter = {};
+            state.currentPage = 1;
+            document.getElementById('filterField').value = '';
+            document.getElementById('filterValue').value = '';
+            loadDocuments();
+            showToast('success', 'Filters Cleared', 'Showing all documents');
+        }
+
+        // Sort Functions
+        function toggleSort() {
+            const panel = document.getElementById('sortPanel');
+            panel.classList.toggle('active');
+        }
+
+        function applySort() {
+            const field = document.getElementById('sortField').value;
+            const order = parseInt(document.getElementById('sortOrder').value);
+
+            if (!field) {
+                showToast('error', 'Error', 'Please select a field to sort by');
+                return;
+            }
+
+            state.currentSort = { [field]: order };
+            state.currentPage = 1;
+            loadDocuments();
+            showToast('success', 'Sort Applied', `Sorting by ${field}`);
+        }
+
+        function clearSort() {
+            state.currentSort = {};
+            state.currentPage = 1;
+            document.getElementById('sortField').value = '';
+            loadDocuments();
+            showToast('success', 'Sort Cleared', 'Default sorting restored');
+        }
+
+        // Column Functions
+        function toggleColumns() {
+            const panel = document.getElementById('columnsPanel');
+            panel.classList.toggle('active');
+        }
+
+        function toggleColumn(columnName) {
+            if (state.visibleColumns.includes(columnName)) {
+                state.visibleColumns = state.visibleColumns.filter(c => c !== columnName);
+            } else {
+                state.visibleColumns.push(columnName);
+            }
+            loadDocuments();
+        }
+
+        // Close columns panel when clicking outside
+        document.addEventListener('click', (e) => {
+            const panel = document.getElementById('columnsPanel');
+            const button = e.target.closest('button');
+
+            if (panel && panel.classList.contains('active') &&
+                !panel.contains(e.target) &&
+                !(button && button.onclick && button.onclick.toString().includes('toggleColumns'))) {
+                panel.classList.remove('active');
+            }
+        });
 
         // CRUD Operations
         function showCreateCollectionModal() {
@@ -1305,17 +2843,33 @@
 
         async function createCollection() {
             const name = document.getElementById('newCollectionName').value.trim();
+
+            // Validate collection name
             if (!name) {
                 showToast('error', 'Error', 'Collection name is required');
                 return;
             }
 
+            // Check for invalid characters
+            if (!/^[a-zA-Z0-9_]+$/.test(name)) {
+                showToast('error', 'Error', 'Collection name can only contain letters, numbers, and underscores');
+                return;
+            }
+
             try {
-                // Create by inserting a dummy document then deleting it
-                await apiCall('POST', `/collections/${name}`, {_init: true});
+                // Create collection by inserting and deleting a dummy document
+                const initDoc = {_init: true, _timestamp: Date.now()};
+                await apiCall('POST', `/collections/${name}`, initDoc);
+
+                // Verify collection was created and clean up init document
                 const result = await apiCall('GET', `/collections/${name}?query={}`);
-                if (result.documents.length > 0) {
-                    await apiCall('DELETE', `/collections/${name}/${result.documents[0]._id}`);
+                if (result.documents && result.documents.length > 0) {
+                    // Delete all init documents
+                    for (const doc of result.documents) {
+                        if (doc._init) {
+                            await apiCall('DELETE', `/collections/${name}/${doc._id}`);
+                        }
+                    }
                 }
 
                 closeModal('createCollectionModal');
@@ -1323,6 +2877,97 @@
                 document.getElementById('newCollectionName').value = '';
                 loadCollections();
                 selectCollection(name);
+
+                // Reload dashboard if visible
+                if (state.currentView === 'dashboard') {
+                    loadDashboard();
+                }
+            } catch (error) {
+                showToast('error', 'Error', error.message);
+            }
+        }
+
+        function deleteCollection(name) {
+            // Store collection name and show modal
+            state.collectionToDelete = name;
+            document.getElementById('deleteCollectionName').textContent = name;
+            showModal('deleteCollectionModal');
+
+            // Add input event listener to enable/disable button
+            const input = document.getElementById('deleteConfirmationInput');
+            const btn = document.getElementById('deleteCollectionBtn');
+
+            input.value = '';
+            input.oninput = function() {
+                if (this.value === 'DELETE') {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                } else {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.5';
+                }
+            };
+
+            // Focus input
+            setTimeout(() => input.focus(), 100);
+        }
+
+        function clearDeleteInput() {
+            document.getElementById('deleteConfirmationInput').value = '';
+            document.getElementById('deleteCollectionBtn').disabled = true;
+            document.getElementById('deleteCollectionBtn').style.opacity = '0.5';
+            state.collectionToDelete = null;
+        }
+
+        async function confirmDeleteCollection() {
+            const name = state.collectionToDelete;
+            if (!name) return;
+
+            const input = document.getElementById('deleteConfirmationInput');
+            if (input.value !== 'DELETE') {
+                showToast('error', 'Error', 'Please type DELETE to confirm');
+                return;
+            }
+
+            try {
+                closeModal('deleteCollectionModal');
+                clearDeleteInput();
+
+                // Show loading toast
+                showToast('success', 'Deleting...', `Dropping collection "${name}"...`);
+
+                // Use the DELETE /collections/{name} endpoint to drop the entire collection
+                await apiCall('DELETE', `/collections/${name}`);
+
+                // If current collection was deleted, clear selection
+                if (state.currentCollection === name) {
+                    state.currentCollection = null;
+                    const container = document.getElementById('tableContainer');
+                    if (container) {
+                        container.innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-state-icon">
+                                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+                                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                        <path d="M3 9h18M9 3v18"/>
+                                    </svg>
+                                </div>
+                                <h3>Select a collection</h3>
+                                <p>Choose a collection from the sidebar to view its documents</p>
+                            </div>
+                        `;
+                    }
+                }
+
+                showToast('success', 'Success', `Collection "${name}" deleted successfully`);
+
+                // Reload collections list
+                await loadCollections();
+
+                // Reload dashboard if visible
+                if (state.currentView === 'dashboard') {
+                    loadDashboard();
+                }
             } catch (error) {
                 showToast('error', 'Error', error.message);
             }
@@ -1337,7 +2982,21 @@
         }
 
         async function insertDocument() {
+            // Double-check collection is selected
+            if (!state.currentCollection) {
+                showToast('error', 'Error', 'No collection selected');
+                closeModal('insertDocumentModal');
+                return;
+            }
+
             const dataStr = document.getElementById('insertDocumentData').value;
+
+            // Validate JSON
+            if (!dataStr.trim()) {
+                showToast('error', 'Error', 'Document data is required');
+                return;
+            }
+
             try {
                 const data = JSON.parse(dataStr);
                 await apiCall('POST', `/collections/${state.currentCollection}`, data);
@@ -1346,55 +3005,22 @@
                 document.getElementById('insertDocumentData').value = '';
                 loadDocuments();
                 loadCollectionCount(state.currentCollection);
+
+                if (state.currentView === 'dashboard') {
+                    loadDashboard();
+                }
             } catch (error) {
                 showToast('error', 'Error', error.message);
             }
         }
 
-        function showQueryModal() {
-            showModal('queryModal');
-        }
-
-        async function executeQuery() {
-            const queryStr = document.getElementById('queryData').value;
-            const limit = document.getElementById('queryLimit').value;
-            try {
-                const query = JSON.parse(queryStr);
-                const result = await apiCall('GET', `/collections/${state.currentCollection}?query=${encodeURIComponent(JSON.stringify(query))}&limit=${limit}`);
-                closeModal('queryModal');
-                currentDocuments = result.documents;
-                renderDocuments(result.documents);
-                showToast('success', 'Success', `Found ${result.count} documents`);
-            } catch (error) {
-                showToast('error', 'Error', error.message);
-            }
-        }
-
-        function showAggregateModal() {
-            showModal('aggregateModal');
-        }
-
-        async function executeAggregate() {
-            const pipelineStr = document.getElementById('aggregateData').value;
-            try {
-                const pipeline = JSON.parse(pipelineStr);
-                const result = await apiCall('POST', `/collections/${state.currentCollection}/aggregate`, { pipeline });
-                closeModal('aggregateModal');
-                currentDocuments = result.results;
-                renderDocuments(result.results);
-                showToast('success', 'Success', `Aggregated ${result.count} results`);
-            } catch (error) {
-                showToast('error', 'Error', error.message);
-            }
-        }
-
-        function editDocument(docId, doc) {
+        function editDocumentFromTable(doc) {
             const editableDoc = { ...doc };
             delete editableDoc._id;
             delete editableDoc._created_at;
             delete editableDoc._updated_at;
 
-            document.getElementById('editDocumentId').value = docId;
+            document.getElementById('editDocumentId').value = doc._id;
             document.getElementById('editDocumentData').value = JSON.stringify(editableDoc, null, 2);
             showModal('editDocumentModal');
         }
@@ -1420,28 +3046,219 @@
                 showToast('success', 'Success', 'Document deleted');
                 loadDocuments();
                 loadCollectionCount(state.currentCollection);
+
+                if (state.currentView === 'dashboard') {
+                    loadDashboard();
+                }
             } catch (error) {
                 showToast('error', 'Error', error.message);
             }
         }
 
-        async function deleteCollection() {
-            if (!confirm(`Delete collection "${state.currentCollection}"? This cannot be undone.`)) return;
-            try {
-                await apiCall('DELETE', `/collections/${state.currentCollection}`);
-                showToast('success', 'Success', `Collection "${state.currentCollection}" deleted`);
-                state.currentCollection = null;
-                document.getElementById('toolbar').style.display = 'none';
-                document.getElementById('contentArea').innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">🚀</div>
-                        <h3>Collection Deleted</h3>
-                        <p>Create a new collection or select an existing one</p>
+        // Query Editor Functions
+        function loadQueryEditor() {
+            // Update collection dropdown
+            const select = document.getElementById('queryEditorCollection');
+            select.innerHTML = '<option value="">Select collection...</option>' +
+                state.collections.map(name => `<option value="${name}">${name}</option>`).join('');
+
+            // Load query history
+            renderQueryHistory();
+        }
+
+        function renderQueryHistory() {
+            const container = document.getElementById('queryHistoryList');
+
+            if (state.queryHistory.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+                        <p>No queries yet</p>
                     </div>
                 `;
-                loadCollections();
+                return;
+            }
+
+            container.innerHTML = state.queryHistory.map((query, index) => `
+                <div class="history-item" onclick="loadHistoryQuery(${index})" title="${query.query}">
+                    <div style="font-weight: 600; margin-bottom: 4px;">${query.collection}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">${query.timestamp}</div>
+                </div>
+            `).join('');
+        }
+
+        function loadHistoryQuery(index) {
+            const query = state.queryHistory[index];
+            document.getElementById('queryEditorCollection').value = query.collection;
+            document.getElementById('queryEditorTextarea').value = query.query;
+            state.currentCollection = query.collection;
+        }
+
+        function updateEditorCollection() {
+            const collection = document.getElementById('queryEditorCollection').value;
+            state.currentCollection = collection;
+        }
+
+        function loadQueryTemplate() {
+            const template = document.getElementById('queryTemplate').value;
+            const textarea = document.getElementById('queryEditorTextarea');
+
+            const templates = {
+                'find_all': '{ }',
+                'find_with_filter': `{
+  "age": { "$gt": 25 },
+  "status": "active"
+}`,
+                'aggregation': `[
+  {
+    "$match": {
+      "age": { "$gte": 30 }
+    }
+  },
+  {
+    "$group": {
+      "_id": "$city",
+      "count": { "$sum": 1 },
+      "avgAge": { "$avg": "$age" }
+    }
+  },
+  {
+    "$sort": { "count": -1 }
+  }
+]`
+            };
+
+            if (template && templates[template]) {
+                textarea.value = templates[template];
+                document.getElementById('queryTemplate').value = '';
+            }
+        }
+
+        async function executeEditorQuery() {
+            const collection = document.getElementById('queryEditorCollection').value;
+            const queryStr = document.getElementById('queryEditorTextarea').value.trim();
+
+            if (!collection) {
+                showToast('error', 'Error', 'Please select a collection');
+                return;
+            }
+
+            if (!queryStr || queryStr === '{ }') {
+                showToast('error', 'Error', 'Please enter a query');
+                return;
+            }
+
+            try {
+                const query = JSON.parse(queryStr);
+                let result;
+
+                // Check if it's an aggregation pipeline (array)
+                if (Array.isArray(query)) {
+                    result = await apiCall('POST', `/collections/${collection}/aggregate`, { pipeline: query });
+                    result.documents = result.results;
+                } else {
+                    result = await apiCall('GET',
+                        `/collections/${collection}?query=${encodeURIComponent(JSON.stringify(query))}&limit=100`);
+                }
+
+                // Add to history
+                state.queryHistory.unshift({
+                    collection,
+                    query: queryStr,
+                    timestamp: new Date().toLocaleTimeString()
+                });
+
+                if (state.queryHistory.length > 10) {
+                    state.queryHistory = state.queryHistory.slice(0, 10);
+                }
+
+                renderQueryHistory();
+
+                // Show results
+                const resultsContainer = document.getElementById('editorResults');
+                const resultsContent = document.getElementById('editorResultsContent');
+
+                resultsContainer.style.display = 'block';
+                resultsContent.textContent = JSON.stringify(result.documents || result.results, null, 2);
+
+                showToast('success', 'Success', `Found ${result.count} results`);
             } catch (error) {
                 showToast('error', 'Error', error.message);
+
+                const resultsContainer = document.getElementById('editorResults');
+                const resultsContent = document.getElementById('editorResultsContent');
+
+                resultsContainer.style.display = 'block';
+                resultsContent.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        function clearEditor() {
+            document.getElementById('queryEditorTextarea').value = '{ }';
+            document.getElementById('editorResults').style.display = 'none';
+        }
+
+        // Monitoring Functions
+        function loadMonitoring() {
+            updateMonitoringMetrics();
+            updateMonitoringChart();
+            loadDatabaseStatus();
+
+            // Update every 5 seconds
+            setInterval(() => {
+                if (state.currentView === 'monitoring') {
+                    updateMonitoringMetrics();
+                    updateMonitoringChart();
+                }
+            }, 5000);
+        }
+
+        function updateMonitoringMetrics() {
+            // Calculate average response time from recent operations
+            const recentOps = state.operationsData.slice(-100);
+            if (recentOps.length > 0) {
+                const avgDuration = recentOps.reduce((sum, op) => sum + (op.duration || 0), 0) / recentOps.length;
+                document.getElementById('avgResponseTime').textContent = Math.round(avgDuration) + 'ms';
+            } else {
+                document.getElementById('avgResponseTime').textContent = '0ms';
+            }
+
+            // Update uptime
+            if (state.connectedAt) {
+                const uptime = Date.now() - state.connectedAt;
+                const hours = Math.floor(uptime / 3600000);
+                const minutes = Math.floor((uptime % 3600000) / 60000);
+                document.getElementById('uptime').textContent = `${hours}h ${minutes}m`;
+            }
+        }
+
+        async function loadDatabaseStatus() {
+            const container = document.getElementById('databaseStatus');
+
+            try {
+                const status = await apiCall('GET', '/status');
+
+                container.innerHTML = `
+                    <div style="display: grid; gap: 16px;">
+                        <div style="padding: 16px; background: var(--bg-tertiary); border-radius: 8px;">
+                            <div style="font-size: 14px; font-weight: 700; color: var(--text-tertiary); margin-bottom: 8px;">Database</div>
+                            <div style="font-size: 20px; font-weight: 700; color: var(--text-primary);">${status.database || 'NexaDB'}</div>
+                        </div>
+                        <div style="padding: 16px; background: var(--bg-tertiary); border-radius: 8px;">
+                            <div style="font-size: 14px; font-weight: 700; color: var(--text-tertiary); margin-bottom: 8px;">Version</div>
+                            <div style="font-size: 20px; font-weight: 700; color: var(--text-primary);">${status.version || '1.0.0'}</div>
+                        </div>
+                        <div style="padding: 16px; background: var(--bg-tertiary); border-radius: 8px;">
+                            <div style="font-size: 14px; font-weight: 700; color: var(--text-tertiary); margin-bottom: 8px;">Status</div>
+                            <div style="font-size: 20px; font-weight: 700; color: var(--success);">Running</div>
+                        </div>
+                        <div style="padding: 16px; background: var(--bg-tertiary); border-radius: 8px;">
+                            <div style="font-size: 14px; font-weight: 700; color: var(--text-tertiary); margin-bottom: 8px;">Collections</div>
+                            <div style="font-size: 20px; font-weight: 700; color: var(--text-primary);">${state.collections.length}</div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                container.innerHTML = `<div class="empty-state"><h3>Error</h3><p>${error.message}</p></div>`;
             }
         }
 
@@ -1473,6 +3290,13 @@
         // Initialize
         window.addEventListener('load', () => {
             initTheme();
+
+            // Restore sidebar state
+            const isCollapsed = localStorage.getItem('nexadb-sidebar-collapsed') === 'true';
+            if (isCollapsed) {
+                document.getElementById('sidebar').classList.add('collapsed');
+            }
+
             setTimeout(connect, 500);
         });
 
