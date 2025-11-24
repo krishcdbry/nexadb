@@ -12,21 +12,21 @@ readme_file = Path(__file__).parent / "README.md"
 long_description = readme_file.read_text(encoding="utf-8") if readme_file.exists() else ""
 
 # Read version from veloxdb_core.py
-version = "1.0.0"
+version = "1.2.0"
 
 setup(
     name="nexadb",
     version=version,
-    description="Zero-dependency LSM-Tree database with professional admin UI",
+    description="Next-gen AI database with enterprise security, HNSW vector search, and 40-50% LLM cost savings",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="NexaDB Team",
-    author_email="support@nexadb.io",
-    url="https://github.com/yourusername/nexadb",
+    author="Krish",
+    author_email="krishcdbry@gmail.com",
+    url="https://github.com/krishcdbry/nexadb",
     project_urls={
-        "Bug Tracker": "https://github.com/yourusername/nexadb/issues",
-        "Documentation": "https://github.com/yourusername/nexadb#readme",
-        "Source Code": "https://github.com/yourusername/nexadb",
+        "Bug Tracker": "https://github.com/krishcdbry/nexadb/issues",
+        "Documentation": "https://github.com/krishcdbry/nexadb#readme",
+        "Source Code": "https://github.com/krishcdbry/nexadb",
     },
     license="MIT",
 
@@ -34,17 +34,23 @@ setup(
     packages=find_packages(exclude=["tests", "tests.*", "docs", "examples"]),
     py_modules=[
         "nexadb_server",
-        "nexadb_admin_server",
-        "nexadb_client",
+        "nexadb_binary_server",
+        "admin_server",
+        "nexadb_cli",
         "veloxdb_core",
         "storage_engine",
+        "security",
+        "index_manager",
+        "toon_format",
+        "toon_cli",
     ],
 
     # Include non-Python files
     package_data={
         "": [
-            "nexadb_admin_professional.html",
             "nexadb_admin_modern.html",
+            "logo-light.svg",
+            "logo-dark.svg",
             "*.md",
         ],
     },
@@ -73,16 +79,18 @@ setup(
     # Entry points for command-line scripts
     entry_points={
         "console_scripts": [
+            "nexadb=nexadb_cli:main",
             "nexadb-server=nexadb_server:main",
-            "nexadb-admin=nexadb_admin_server:main",
-            "nexadb=nexadb_client:cli",
+            "nexadb-binary=nexadb_binary_server:main",
+            "nexadb-admin=admin_server:main",
+            "toon=toon_cli:main",
         ],
     },
 
     # Classifiers for PyPI
     classifiers=[
         # Development status
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
 
         # Intended audience
         "Intended Audience :: Developers",
@@ -121,15 +129,26 @@ setup(
     keywords=[
         "database",
         "nosql",
-        "lsm-tree",
-        "key-value",
-        "document-database",
+        "ai-database",
         "vector-database",
+        "vector-search",
+        "hnsw",
+        "semantic-search",
         "embeddings",
+        "llm",
+        "toon-format",
+        "enterprise-security",
+        "aes-256",
+        "rbac",
+        "lsm-tree",
+        "document-database",
         "zero-dependency",
         "lightweight",
         "fast",
         "python",
+        "indexing",
+        "b-tree",
+        "full-text-search",
     ],
 
     # Ensure wheel is built as universal

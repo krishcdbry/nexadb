@@ -52,7 +52,20 @@ test_*.py
 quick_*.py
 example_*.py
 
-# Internal documentation (keep only README and TOON docs)
+# Documentation files - EXCLUDED FROM GIT
+# Policy: NO .md files should be committed except README.md
+# Reason: Documentation is for local development context only
+
+# All markdown files
+*.md
+!README.md
+
+# Specific internal docs (belt and suspenders)
+SESSION_CONTEXT.md
+SESSION_SUMMARY.md
+ARCHITECTURE.md
+PRODUCTION_STATUS.md
+README_PRODUCTION.md
 *_PLAN.md
 *_PROGRESS.md
 *_COMPLETE.md
