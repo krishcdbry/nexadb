@@ -108,3 +108,16 @@ nexadb_client.py
 nexadb_server.py
 pooled_server.py
 veloxdb_core.py
+
+# Build/setup scripts (not needed in repo)
+*.sh
+calculate_sha256.sh
+create_github_release.sh
+create_homebrew_tap.sh
+debug_install.sh
+fix_python_path.sh
+fix_release.sh
+setup_github.sh
+test_fresh_install.sh
+update_tap_final.sh
+update_tap.sh
