@@ -90,3 +90,21 @@ THEME_UPDATE_SUMMARY.md
 
 # Exported TOON files (examples)
 *.toon
+
+# Old/backup HTML files
+*_backup.html
+*_old.html
+nexadb_admin_professional.html
+nexadb_admin_simple.html
+nexadb_admin.html
+toon_viewer.html
+
+# Old/deprecated Python files
+benchmark_*.py
+batched_wal.py
+bloom_filter.py
+nexadb_admin_server.py
+nexadb_client.py
+nexadb_server.py
+pooled_server.py
+veloxdb_core.py
