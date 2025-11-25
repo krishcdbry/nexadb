@@ -197,6 +197,9 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
         # Collections endpoint
         elif parsed_path.path == '/api/collections':
             self.handle_get_collections()
+        # Vectors endpoint
+        elif parsed_path.path == '/api/vectors':
+            self.handle_get_vectors()
         # Session management endpoints
         elif parsed_path.path == '/api/auth/logout':
             self.handle_logout()
@@ -340,6 +343,68 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
                 'error': 'REST API not available',
                 'details': str(e)
             }).encode())
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_get_vectors(self):
+        """Handle GET /api/vectors - get vector index statistics."""
+        try:
+            from veloxdb_core import VeloxDB
+            from collections import defaultdict
+
+            # Initialize database to scan vectors
+            data_dir = os.getenv('NEXADB_DATA_DIR', './nexadb_data')
+            db = VeloxDB(data_dir)
+
+            # Scan for all vectors
+            vector_prefix = 'vector:'
+            all_vectors = list(db.engine.range_scan(vector_prefix, vector_prefix + '\xff'))
+
+            # Group by collection and get detailed info
+            vector_data = defaultdict(lambda: {'count': 0, 'documents': []})
+
+            for key, vector_bytes in all_vectors:
+                # key format: vector:{collection}:{doc_id}
+                parts = key.split(':')
+                if len(parts) >= 3:
+                    collection = parts[1]
+                    doc_id = parts[2]
+
+                    # Parse vector to get dimensions
+                    vector = json.loads(vector_bytes.decode('utf-8'))
+                    dimensions = len(vector)
+
+                    vector_data[collection]['count'] += 1
+                    vector_data[collection]['documents'].append({
+                        'doc_id': doc_id,
+                        'dimensions': dimensions
+                    })
+
+                    # Store dimensions for this collection (should be consistent)
+                    if 'dimensions' not in vector_data[collection]:
+                        vector_data[collection]['dimensions'] = dimensions
+
+            db.close()
+
+            # Format response
+            result = {
+                'status': 'success',
+                'total_vectors': len(all_vectors),
+                'collections': dict(vector_data)
+            }
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+
+            self.wfile.write(json.dumps(result).encode())
+
         except Exception as e:
             self.send_response(500)
             self.send_header('Content-Type', 'application/json')
