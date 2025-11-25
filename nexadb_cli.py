@@ -1,393 +1,473 @@
 #!/usr/bin/env python3
 """
-NexaDB CLI - Interactive Terminal Client
-=========================================
-
-Interactive command-line interface for NexaDB (like MongoDB shell, Redis CLI)
+NexaDB Interactive CLI
 
 Usage:
-    python3 nexadb_cli.py
-    python3 nexadb_cli.py --host localhost --port 6969 --api-key your_key
+    nexadb-cli -u root -p
+    nexadb-cli --host localhost --port 6970 -u root -p
+    nexadb-cli --help
 
-Commands:
-    show dbs                    - List all collections
-    use <collection>            - Switch to collection
-    db.insert({...})           - Insert document
-    db.find({...})             - Find documents
-    db.update(id, {...})       - Update document
-    db.delete(id)              - Delete document
-    db.aggregate([...])        - Aggregation pipeline
-    db.count()                 - Count documents
-    db.stats()                 - Collection stats
-    help                       - Show help
-    exit                       - Exit CLI
+Interactive Commands:
+    USE <collection>                  - Switch to a collection
+    CREATE <json>                     - Create a document
+    QUERY <json>                      - Query documents
+    UPDATE <id> <json>                - Update a document
+    DELETE <id>                       - Delete a document
+    VECTOR_SEARCH <vector> [limit]    - Vector similarity search
+    COUNT [json]                      - Count documents
+    COLLECTIONS                       - List all collections
+    HELP                              - Show help
+    EXIT / QUIT / \\q                  - Exit CLI
 """
 
 import sys
+import argparse
+import getpass
 import json
-import readline
-import atexit
+import cmd
 import os
-from typing import Any, Dict, List, Optional
-from nexadb_client import NexaDB, NexaDBException
+from typing import Optional, Dict, Any, List
 
-# ANSI color codes
+# Color codes for terminal output
 class Colors:
     HEADER = '\033[95m'
-    BLUE = '\033[94m'
-    CYAN = '\033[96m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-class NexaDBCLI:
-    """Interactive NexaDB CLI"""
+def colored(text: str, color: str) -> str:
+    """Return colored text for terminal output."""
+    return f"{color}{text}{Colors.ENDC}"
 
-    def __init__(self, host: str = 'localhost', port: int = 6969, api_key: str = ''):
+def print_json(data: Any, indent: int = 2) -> None:
+    """Pretty print JSON data with colors."""
+    json_str = json.dumps(data, indent=indent, ensure_ascii=False)
+    print(colored(json_str, Colors.OKCYAN))
+
+def print_success(message: str) -> None:
+    """Print success message in green."""
+    print(colored(f"✓ {message}", Colors.OKGREEN))
+
+def print_error(message: str) -> None:
+    """Print error message in red."""
+    print(colored(f"✗ {message}", Colors.FAIL))
+
+def print_info(message: str) -> None:
+    """Print info message in blue."""
+    print(colored(message, Colors.OKBLUE))
+
+def print_warning(message: str) -> None:
+    """Print warning message in yellow."""
+    print(colored(f"⚠ {message}", Colors.WARNING))
+
+
+class NexaDBShell(cmd.Cmd):
+    """Interactive NexaDB shell."""
+
+    intro = colored(f"""
+╔═══════════════════════════════════════════════════════════════════════╗
+║     ███╗   ██╗███████╗██╗  ██╗ █████╗ ██████╗ ██████╗               ║
+║     ████╗  ██║██╔════╝╚██╗██╔╝██╔══██╗██╔══██╗██╔══██╗              ║
+║     ██╔██╗ ██║█████╗   ╚███╔╝ ███████║██║  ██║██████╔╝              ║
+║     ██║╚██╗██║██╔══╝   ██╔██╗ ██╔══██║██║  ██║██╔══██╗              ║
+║     ██║ ╚████║███████╗██╔╝ ██╗██║  ██║██████╔╝██████╔╝              ║
+║     ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚═════╝               ║
+║                                                                       ║
+║            Database for AI Developers - v2.0.0                       ║
+║                                                                       ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+Type 'HELP' for commands or 'EXIT' to quit.
+    """, Colors.OKCYAN)
+
+    prompt = colored('nexadb> ', Colors.BOLD + Colors.OKGREEN)
+
+    def __init__(self, host: str, port: int, username: str, password: str):
+        super().__init__()
         self.host = host
         self.port = port
-        self.api_key = api_key
-        self.db = None
-        self.current_collection = None
-        self.history_file = os.path.expanduser('~/.nexadb_history')
+        self.username = username
+        self.password = password
+        self.client = None
+        self.current_collection: Optional[str] = None
+        self.connected = False
 
-        # Setup readline history
-        self._setup_history()
-
-    def _setup_history(self):
-        """Setup command history"""
+    def preloop(self):
+        """Connect to NexaDB before starting the loop."""
         try:
-            readline.read_history_file(self.history_file)
-            readline.set_history_length(1000)
-        except FileNotFoundError:
-            pass
+            # Import here to avoid issues if module not found
+            from nexadb_client import NexaClient
 
-        atexit.register(readline.write_history_file, self.history_file)
-
-    def connect(self):
-        """Connect to NexaDB server"""
-        try:
-            self.db = NexaDB(host=self.host, port=self.port, api_key=self.api_key)
-
-            # Test connection
-            status = self.db.status()
-
-            self._print_success(f"Connected to {status['database']} v{status['version']}")
-            self._print_info(f"Server: {self.host}:{self.port}")
-            return True
-
+            print_info(f"Connecting to {self.host}:{self.port}...")
+            self.client = NexaClient(
+                host=self.host,
+                port=self.port,
+                username=self.username,
+                password=self.password
+            )
+            self.client.connect()
+            self.connected = True
+            print_success(f"Connected to NexaDB v2.0.0")
+            print()
         except Exception as e:
-            self._print_error(f"Connection failed: {e}")
-            self._print_info("Make sure NexaDB server is running:")
-            self._print_info("  python3 nexadb_server.py")
-            return False
+            print_error(f"Connection failed: {e}")
+            print_info("Make sure NexaDB server is running:")
+            print_info("  $ nexadb start")
+            print()
+            sys.exit(1)
 
-    def _print_success(self, message: str):
-        """Print success message"""
-        print(f"{Colors.GREEN}✓{Colors.ENDC} {message}")
+    def postloop(self):
+        """Disconnect when exiting."""
+        if self.client and self.connected:
+            self.client.disconnect()
+            print_success("Disconnected from NexaDB")
 
-    def _print_error(self, message: str):
-        """Print error message"""
-        print(f"{Colors.RED}✗{Colors.ENDC} {message}")
+    def do_USE(self, collection: str):
+        """Switch to a collection.
 
-    def _print_info(self, message: str):
-        """Print info message"""
-        print(f"{Colors.CYAN}ℹ{Colors.ENDC} {message}")
-
-    def _print_warning(self, message: str):
-        """Print warning message"""
-        print(f"{Colors.YELLOW}⚠{Colors.ENDC} {message}")
-
-    def _print_json(self, data: Any):
-        """Pretty print JSON"""
-        print(json.dumps(data, indent=2, default=str))
-
-    def _get_prompt(self) -> str:
-        """Get CLI prompt"""
-        if self.current_collection:
-            return f"{Colors.GREEN}nexadb:{self.current_collection}>{Colors.ENDC} "
-        return f"{Colors.BLUE}nexadb>{Colors.ENDC} "
-
-    def show_banner(self):
-        """Show welcome banner"""
-        banner = f"""
-{Colors.BOLD}{Colors.CYAN}
-╔═══════════════════════════════════════════════════════════╗
-║                                                           ║
-║   ███╗   ██╗███████╗██╗  ██╗ █████╗ ██████╗ ██████╗     ║
-║   ████╗  ██║██╔════╝╚██╗██╔╝██╔══██╗██╔══██╗██╔══██╗    ║
-║   ██╔██╗ ██║█████╗   ╚███╔╝ ███████║██║  ██║██████╔╝    ║
-║   ██║╚██╗██║██╔══╝   ██╔██╗ ██╔══██║██║  ██║██╔══██╗    ║
-║   ██║ ╚████║███████╗██╔╝ ██╗██║  ██║██████╔╝██████╔╝    ║
-║   ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚═════╝     ║
-║                                                           ║
-║          Next-Generation Lightweight Database             ║
-║                  Interactive CLI v1.0                     ║
-║                                                           ║
-╚═══════════════════════════════════════════════════════════╝
-{Colors.ENDC}
-Type {Colors.BOLD}help{Colors.ENDC} for available commands
-Type {Colors.BOLD}exit{Colors.ENDC} to quit
-"""
-        print(banner)
-
-    def show_help(self):
-        """Show help message"""
-        help_text = f"""
-{Colors.BOLD}NexaDB CLI Commands:{Colors.ENDC}
-
-{Colors.CYAN}Connection & Navigation:{Colors.ENDC}
-  show dbs                       List all collections
-  use <collection>               Switch to collection
-  db                             Show current collection
-
-{Colors.CYAN}Document Operations:{Colors.ENDC}
-  db.insert({{'key': 'value'}})    Insert document
-  db.find({{}})                    Find all documents
-  db.find({{'age': 25}})           Find with exact match
-  db.find({{'age': {{'$gt': 25}}}})  Find with operators
-  db.findOne({{'email': 'alice@example.com'}})
-  db.findById('doc_id')          Find by ID
-  db.count()                     Count documents
-
-{Colors.CYAN}Update & Delete:{Colors.ENDC}
-  db.update('id', {{'age': 30}})   Update document
-  db.delete('id')                Delete document
-
-{Colors.CYAN}Advanced Queries:{Colors.ENDC}
-  db.aggregate([
-    {{'$match': {{'age': {{'$gt': 25}}}}}},
-    {{'$group': {{'_id': '$city', 'count': {{'$sum': 1}}}}}},
-    {{'$sort': {{'count': -1}}}}
-  ])
-
-{Colors.CYAN}Query Operators:{Colors.ENDC}
-  $eq, $ne                       Equality
-  $gt, $gte, $lt, $lte          Comparison
-  $in, $nin                      Array membership
-  $regex                         Regex match
-  $exists                        Field exists
-
-{Colors.CYAN}System:{Colors.ENDC}
-  stats                          Server statistics
-  clear                          Clear screen
-  help                           Show this help
-  exit                           Exit CLI
-
-{Colors.CYAN}Examples:{Colors.ENDC}
-  use users
-  db.insert({{'name': 'Alice', 'age': 28, 'city': 'NYC'}})
-  db.find({{'age': {{'$gte': 25}}}})
-  db.update('abc123', {{'age': 29}})
-  db.delete('abc123')
-"""
-        print(help_text)
-
-    def execute_command(self, command: str) -> bool:
-        """Execute a command. Returns False to exit."""
-        command = command.strip()
-
-        if not command:
-            return True
-
-        # Exit commands
-        if command.lower() in ('exit', 'quit', 'q'):
-            self._print_info("Goodbye!")
-            return False
-
-        # Help
-        if command.lower() == 'help':
-            self.show_help()
-            return True
-
-        # Clear screen
-        if command.lower() == 'clear':
-            os.system('clear' if os.name != 'nt' else 'cls')
-            return True
-
-        # Show databases (collections)
-        if command.lower() == 'show dbs':
-            try:
-                collections = self.db.list_collections()
-                if collections:
-                    self._print_success(f"Collections ({len(collections)}):")
-                    for coll in collections:
-                        print(f"  • {coll}")
-                else:
-                    self._print_info("No collections yet")
-            except Exception as e:
-                self._print_error(f"Error: {e}")
-            return True
-
-        # Use collection
-        if command.lower().startswith('use '):
-            collection_name = command[4:].strip()
-            self.current_collection = collection_name
-            self._print_success(f"Switched to collection: {collection_name}")
-            return True
-
-        # Show current collection
-        if command.lower() == 'db':
-            if self.current_collection:
-                self._print_info(f"Current collection: {self.current_collection}")
-            else:
-                self._print_warning("No collection selected. Use: use <collection>")
-            return True
-
-        # Stats
-        if command.lower() == 'stats':
-            try:
-                stats = self.db.stats()
-                self._print_success("Database Statistics:")
-                self._print_json(stats)
-            except Exception as e:
-                self._print_error(f"Error: {e}")
-            return True
-
-        # Collection operations
-        if command.startswith('db.'):
-            if not self.current_collection:
-                self._print_warning("No collection selected. Use: use <collection>")
-                return True
-
-            self._execute_collection_command(command[3:])
-            return True
-
-        # Unknown command
-        self._print_error(f"Unknown command: {command}")
-        self._print_info("Type 'help' for available commands")
-        return True
-
-    def _execute_collection_command(self, command: str):
-        """Execute collection-specific command"""
-        collection = self.db.collection(self.current_collection)
-
-        try:
-            # Insert
-            if command.startswith('insert('):
-                data_str = command[7:-1]  # Extract content between ( )
-                data = eval(data_str)
-                doc_id = collection.insert(data)
-                self._print_success(f"Document inserted: {doc_id}")
-
-            # Find
-            elif command.startswith('find('):
-                query_str = command[5:-1]
-                query = eval(query_str) if query_str else {}
-                results = collection.find(query, limit=100)
-                self._print_success(f"Found {len(results)} documents:")
-                for doc in results:
-                    self._print_json(doc)
-                    print()
-
-            # Find one
-            elif command.startswith('findOne('):
-                query_str = command[8:-1]
-                query = eval(query_str)
-                result = collection.find_one(query)
-                if result:
-                    self._print_success("Document found:")
-                    self._print_json(result)
-                else:
-                    self._print_info("No document found")
-
-            # Find by ID
-            elif command.startswith('findById('):
-                doc_id = command[10:-2]  # Extract ID from quotes
-                result = collection.find_by_id(doc_id)
-                if result:
-                    self._print_success("Document found:")
-                    self._print_json(result)
-                else:
-                    self._print_info("No document found")
-
-            # Update
-            elif command.startswith('update('):
-                # Extract parameters
-                params_str = command[7:-1]
-                parts = params_str.split(',', 1)
-                doc_id = parts[0].strip().strip("'\"")
-                updates = eval(parts[1].strip())
-
-                success = collection.update(doc_id, updates)
-                if success:
-                    self._print_success(f"Document updated: {doc_id}")
-                else:
-                    self._print_warning("Document not found")
-
-            # Delete
-            elif command.startswith('delete('):
-                doc_id = command[7:-1].strip().strip("'\"")
-                success = collection.delete(doc_id)
-                if success:
-                    self._print_success(f"Document deleted: {doc_id}")
-                else:
-                    self._print_warning("Document not found")
-
-            # Count
-            elif command.startswith('count()'):
-                count = collection.count()
-                self._print_success(f"Total documents: {count}")
-
-            # Aggregate
-            elif command.startswith('aggregate('):
-                pipeline_str = command[10:-1]
-                pipeline = eval(pipeline_str)
-                results = collection.aggregate(pipeline)
-                self._print_success(f"Aggregation results ({len(results)} documents):")
-                self._print_json(results)
-
-            else:
-                self._print_error(f"Unknown collection command: {command}")
-                self._print_info("Type 'help' for available commands")
-
-        except SyntaxError as e:
-            self._print_error(f"Syntax error: {e}")
-            self._print_info("Check your command syntax")
-        except NexaDBException as e:
-            self._print_error(f"Database error: {e}")
-        except Exception as e:
-            self._print_error(f"Error: {e}")
-
-    def run(self):
-        """Run interactive CLI"""
-        self.show_banner()
-
-        if not self.connect():
+        Usage: USE <collection>
+        Example: USE movies
+        """
+        if not collection:
+            print_error("Collection name required")
+            print_info("Usage: USE <collection>")
             return
 
-        print()
+        self.current_collection = collection.strip()
+        self.prompt = colored(f'nexadb({self.current_collection})> ', Colors.BOLD + Colors.OKGREEN)
+        print_success(f"Switched to collection '{self.current_collection}'")
 
-        while True:
-            try:
-                command = input(self._get_prompt())
-                if not self.execute_command(command):
-                    break
-            except KeyboardInterrupt:
-                print()
-                self._print_info("Use 'exit' to quit")
-            except EOFError:
-                print()
-                break
+    def do_CREATE(self, args: str):
+        """Create a document in the current collection.
+
+        Usage: CREATE <json>
+        Example: CREATE {"title": "The Matrix", "year": 1999}
+        """
+        if not self.current_collection:
+            print_error("No collection selected. Use 'USE <collection>' first.")
+            return
+
+        if not args:
+            print_error("JSON data required")
+            print_info("Usage: CREATE {\"key\": \"value\"}")
+            return
+
+        try:
+            data = json.loads(args)
+            result = self.client.create(self.current_collection, data)
+            print_success(f"Document created: {result.get('document_id', 'N/A')}")
+            print_json(result)
+        except json.JSONDecodeError as e:
+            print_error(f"Invalid JSON: {e}")
+        except Exception as e:
+            print_error(f"Error: {e}")
+
+    def do_QUERY(self, args: str):
+        """Query documents in the current collection.
+
+        Usage: QUERY <json>
+        Example: QUERY {"year": {"$gte": 2000}}
+        Example: QUERY {}  (get all documents)
+        """
+        if not self.current_collection:
+            print_error("No collection selected. Use 'USE <collection>' first.")
+            return
+
+        try:
+            filters = json.loads(args) if args.strip() else {}
+            results = self.client.query(self.current_collection, filters, limit=100)
+
+            if not results:
+                print_warning("No documents found")
+                return
+
+            print_success(f"Found {len(results)} document(s):")
+            for i, doc in enumerate(results, 1):
+                print(colored(f"\n[{i}]", Colors.BOLD))
+                print_json(doc)
+        except json.JSONDecodeError as e:
+            print_error(f"Invalid JSON: {e}")
+        except Exception as e:
+            print_error(f"Error: {e}")
+
+    def do_UPDATE(self, args: str):
+        """Update a document.
+
+        Usage: UPDATE <id> <json>
+        Example: UPDATE doc_abc123 {"age": 30}
+        """
+        if not self.current_collection:
+            print_error("No collection selected. Use 'USE <collection>' first.")
+            return
+
+        parts = args.split(maxsplit=1)
+        if len(parts) < 2:
+            print_error("Document ID and JSON data required")
+            print_info("Usage: UPDATE <id> {\"key\": \"value\"}")
+            return
+
+        doc_id, json_str = parts
+        try:
+            updates = json.loads(json_str)
+            result = self.client.update(self.current_collection, doc_id.strip(), updates)
+            print_success(f"Document updated: {doc_id}")
+            print_json(result)
+        except json.JSONDecodeError as e:
+            print_error(f"Invalid JSON: {e}")
+        except Exception as e:
+            print_error(f"Error: {e}")
+
+    def do_DELETE(self, doc_id: str):
+        """Delete a document.
+
+        Usage: DELETE <id>
+        Example: DELETE doc_abc123
+        """
+        if not self.current_collection:
+            print_error("No collection selected. Use 'USE <collection>' first.")
+            return
+
+        if not doc_id:
+            print_error("Document ID required")
+            print_info("Usage: DELETE <id>")
+            return
+
+        try:
+            result = self.client.delete(self.current_collection, doc_id.strip())
+            print_success(f"Document deleted: {doc_id}")
+            print_json(result)
+        except Exception as e:
+            print_error(f"Error: {e}")
+
+    def do_VECTOR_SEARCH(self, args: str):
+        """Vector similarity search.
+
+        Usage: VECTOR_SEARCH <vector> [limit] [dimensions]
+        Example: VECTOR_SEARCH [0.1, 0.95, 0.1, 0.8] 3 4
+        """
+        if not self.current_collection:
+            print_error("No collection selected. Use 'USE <collection>' first.")
+            return
+
+        if not args:
+            print_error("Vector required")
+            print_info("Usage: VECTOR_SEARCH [0.1, 0.2, 0.3] [limit] [dimensions]")
+            return
+
+        try:
+            # Parse vector and optional limit/dimensions
+            parts = args.strip().split(']', 1)
+            vector_str = parts[0] + ']'
+            vector = json.loads(vector_str)
+
+            limit = 10
+            dimensions = len(vector)
+
+            if len(parts) > 1:
+                extra_args = parts[1].strip().split()
+                if len(extra_args) >= 1:
+                    limit = int(extra_args[0])
+                if len(extra_args) >= 2:
+                    dimensions = int(extra_args[1])
+
+            results = self.client.vector_search(
+                collection=self.current_collection,
+                vector=vector,
+                limit=limit,
+                dimensions=dimensions
+            )
+
+            if not results:
+                print_warning("No similar documents found")
+                return
+
+            print_success(f"Found {len(results)} similar document(s):")
+            for i, result in enumerate(results, 1):
+                similarity = result.get('similarity', 0) * 100
+                print(colored(f"\n[{i}] {similarity:.2f}% match", Colors.BOLD))
+                print_json(result['document'])
+        except json.JSONDecodeError as e:
+            print_error(f"Invalid vector format: {e}")
+        except Exception as e:
+            print_error(f"Error: {e}")
+
+    def do_COUNT(self, args: str):
+        """Count documents in the current collection.
+
+        Usage: COUNT [json]
+        Example: COUNT {"status": "active"}
+        Example: COUNT  (count all)
+        """
+        if not self.current_collection:
+            print_error("No collection selected. Use 'USE <collection>' first.")
+            return
+
+        try:
+            filters = json.loads(args) if args.strip() else {}
+            results = self.client.query(self.current_collection, filters, limit=1000000)
+            count = len(results)
+            print_success(f"Count: {count} document(s)")
+        except json.JSONDecodeError as e:
+            print_error(f"Invalid JSON: {e}")
+        except Exception as e:
+            print_error(f"Error: {e}")
+
+    def do_COLLECTIONS(self, args: str):
+        """List all collections.
+
+        Usage: COLLECTIONS
+        """
+        try:
+            # Try to list collections (if method exists)
+            # For now, just show current collection
+            if self.current_collection:
+                print_info(f"Current collection: {self.current_collection}")
+            else:
+                print_warning("No collection selected")
+                print_info("Use 'USE <collection>' to switch to a collection")
+        except Exception as e:
+            print_error(f"Error: {e}")
+
+    def do_HELP(self, args: str):
+        """Show available commands."""
+        help_text = """
+╔═══════════════════════════════════════════════════════════════════╗
+║                        NexaDB CLI Commands                        ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+Collection Management:
+  USE <collection>              Switch to a collection
+  COLLECTIONS                   List all collections
+
+Document Operations:
+  CREATE <json>                 Create a document
+  QUERY <json>                  Query documents
+  UPDATE <id> <json>            Update a document
+  DELETE <id>                   Delete a document
+  COUNT [json]                  Count documents
+
+Vector Search:
+  VECTOR_SEARCH <vector> [limit] [dimensions]
+                                Search by vector similarity
+
+Examples:
+  USE movies
+  CREATE {"title": "The Matrix", "year": 1999}
+  QUERY {"year": {"$gte": 2000}}
+  UPDATE doc_abc123 {"year": 2000}
+  DELETE doc_abc123
+  VECTOR_SEARCH [0.1, 0.95, 0.1, 0.8] 3 4
+  COUNT {"status": "active"}
+
+System:
+  HELP                          Show this help
+  EXIT / QUIT / \\q              Exit CLI
+
+Press Ctrl+C to cancel current command
+Press Ctrl+D or type EXIT to quit
+        """
+        print(colored(help_text, Colors.OKCYAN))
+
+    def do_EXIT(self, args: str):
+        """Exit the CLI."""
+        print_info("Goodbye! 👋")
+        return True
+
+    def do_QUIT(self, args: str):
+        """Exit the CLI."""
+        return self.do_EXIT(args)
+
+    def do_EOF(self, args: str):
+        """Handle Ctrl+D."""
+        print()  # New line
+        return self.do_EXIT(args)
+
+    def emptyline(self):
+        """Do nothing on empty line."""
+        pass
+
+    def default(self, line: str):
+        """Handle unknown commands."""
+        if line.strip() == r'\q':
+            return self.do_EXIT('')
+        print_error(f"Unknown command: {line}")
+        print_info("Type 'HELP' to see available commands")
 
 
 def main():
-    """Main entry point"""
-    import argparse
+    """Main entry point for the CLI."""
+    parser = argparse.ArgumentParser(
+        description='NexaDB Interactive CLI',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  nexadb-cli -u root -p
+  nexadb-cli --host localhost --port 6970 -u admin -p
+  nexadb-cli --help
 
-    parser = argparse.ArgumentParser(description='NexaDB Interactive CLI')
-    parser.add_argument('--host', default='localhost', help='NexaDB host (default: localhost)')
-    parser.add_argument('--port', type=int, default=6969, help='NexaDB port (default: 6969)')
-    parser.add_argument('--api-key', default='',
-                       help='API key (not required for localhost)')
+Interactive Commands:
+  USE movies
+  CREATE {"title": "The Matrix", "year": 1999}
+  QUERY {"year": {"$gte": 2000}}
+  VECTOR_SEARCH [0.1, 0.95, 0.1, 0.8] 3 4
+        """
+    )
+
+    parser.add_argument(
+        '--host',
+        default='localhost',
+        help='NexaDB server host (default: localhost)'
+    )
+    parser.add_argument(
+        '--port',
+        type=int,
+        default=6970,
+        help='NexaDB server port (default: 6970)'
+    )
+    parser.add_argument(
+        '-u', '--username',
+        default='root',
+        help='Username (default: root)'
+    )
+    parser.add_argument(
+        '-p', '--password',
+        action='store_true',
+        help='Prompt for password'
+    )
+    parser.add_argument(
+        '--password-stdin',
+        metavar='PASSWORD',
+        help='Password (not recommended, use -p instead)'
+    )
 
     args = parser.parse_args()
 
-    cli = NexaDBCLI(host=args.host, port=args.port, api_key=args.api_key)
-    cli.run()
+    # Get password
+    if args.password:
+        password = getpass.getpass('Password: ')
+    elif args.password_stdin:
+        password = args.password_stdin
+    else:
+        password = 'nexadb123'  # Default password
+
+    # Start interactive shell
+    try:
+        shell = NexaDBShell(
+            host=args.host,
+            port=args.port,
+            username=args.username,
+            password=password
+        )
+        shell.cmdloop()
+    except KeyboardInterrupt:
+        print()
+        print_info("Goodbye! 👋")
+        sys.exit(0)
 
 
 if __name__ == '__main__':
