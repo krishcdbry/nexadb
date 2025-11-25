@@ -8,7 +8,7 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Node.js 14+](https://img.shields.io/badge/node-14+-green.svg)](https://nodejs.org/)
 
-[Quick Start](#quick-start) • [Vector Search](#-built-in-vector-search) • [TOON Format](#toon-format) • [Admin Panel](#admin-panel) • [Architecture](#-architecture-v20---mysql-style)
+[Quick Start](#quick-start) • [Vector Search](#-built-in-vector-search) • [TOON Format](#toon-format) • [Admin Panel](#admin-panel) • [Architecture](#-architecture-v20)
 
 </div>
 
@@ -21,7 +21,7 @@ NexaDB is a **lightweight, high-performance NoSQL database** built for AI develo
 - 📦 **TOON format** support (40-50% fewer LLM tokens)
 - ⚡ **Binary protocol** (10x faster than REST)
 - 🎨 **Beautiful admin panel** with TOON export
-- 🏗️ **MySQL-style architecture** (single source of truth)
+- 🏗️ **Unified architecture** (single source of truth)
 
 **Perfect for:**
 - 🤖 AI/ML applications and RAG systems
@@ -629,7 +629,7 @@ NexaDB uses a custom binary protocol built on MessagePack for maximum performanc
 
 ---
 
-## 🏗️ Architecture (v2.0 - MySQL-Style)
+## 🏗️ Architecture v2.0
 
 **Single Source of Truth** - All interfaces connect to one binary server:
 
@@ -675,7 +675,7 @@ NexaDB uses a custom binary protocol built on MessagePack for maximum performanc
 - ✅ **Immediate consistency** - All clients see the same data instantly
 - ✅ **66% less memory** - One VeloxDB instance instead of three
 - ✅ **No race conditions** - Single source of truth
-- ✅ **Production-ready** - MySQL-proven architecture
+- ✅ **Production-ready** - Battle-tested architecture
 
 ---
 
@@ -760,7 +760,7 @@ python3 admin_server.py --port 9999 --data-dir ./nexadb_data
 - [x] JavaScript/Node.js SDK
 - [x] **Native TOON format support** 🎉
 - [x] **Vector search with HNSW algorithm** 🎯
-- [x] **v2.0 MySQL-style architecture** (single source of truth)
+- [x] **v2.0 unified architecture** (single source of truth)
 - [x] TOON CLI tools
 - [x] Modern admin panel with TOON export
 - [x] Query editor with JSON/TOON toggle
