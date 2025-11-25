@@ -137,7 +137,7 @@ results = client.vector_search(
 
 ## 🎯 Quick Start
 
-### Installation via Homebrew (macOS/Linux)
+### Installation via Homebrew (macOS)
 
 ```bash
 # Add the tap
@@ -157,6 +157,30 @@ nexadb start
 # Access admin panel
 open http://localhost:9999
 ```
+
+### Installation via Install Script (Linux/Ubuntu)
+
+```bash
+# One-line install
+curl -fsSL https://raw.githubusercontent.com/krishcdbry/nexadb/main/install.sh | bash
+
+# Reload your shell
+source ~/.bashrc  # or ~/.zshrc
+
+# Start all services
+nexadb start
+
+# Access admin panel
+open http://localhost:9999
+
+# Uninstall (if needed)
+curl -fsSL https://raw.githubusercontent.com/krishcdbry/nexadb/main/uninstall.sh | bash
+```
+
+**Supported Linux Distributions:**
+- Ubuntu/Debian (18.04+)
+- Fedora/RHEL/CentOS (7+)
+- Arch Linux/Manjaro
 
 ### Manual Installation
 
