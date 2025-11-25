@@ -29,6 +29,9 @@ nexadb_wal/
 *~
 .DS_Store
 
+# Claude Code context (local only)
+.claude/
+
 # OS
 Thumbs.db
 desktop.ini
