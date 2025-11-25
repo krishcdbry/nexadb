@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  nexadb:
+    image: krishcdbry/nexadb:latest
+    container_name: nexadb
+    ports:
+      - "6970:6970"  # Binary Protocol
+      - "6969:6969"  # REST API
+      - "9999:9999"  # Admin UI
+    volumes:
+      - nexadb-data:/data
+    environment:
+      - DATA_DIR=/data
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.socket(); s.connect(('localhost', 6970)); s.close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  nexadb-data:
+    driver: local

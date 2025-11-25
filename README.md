@@ -182,6 +182,42 @@ curl -fsSL https://raw.githubusercontent.com/krishcdbry/nexadb/main/uninstall.sh
 - Fedora/RHEL/CentOS (7+)
 - Arch Linux/Manjaro
 
+### Installation via Docker (Windows, Mac, Linux)
+
+```bash
+# Pull and run (simplest)
+docker run -d \
+  -p 6970:6970 \
+  -p 6969:6969 \
+  -p 9999:9999 \
+  -v nexadb-data:/data \
+  --name nexadb \
+  krishcdbry/nexadb:latest
+
+# Or use docker-compose
+curl -O https://raw.githubusercontent.com/krishcdbry/nexadb/main/docker-compose.yml
+docker-compose up -d
+
+# Access admin panel
+open http://localhost:9999
+
+# View logs
+docker logs -f nexadb
+
+# Stop
+docker stop nexadb
+
+# Remove
+docker rm nexadb
+```
+
+**What you get:**
+- ✅ Works on Windows, Mac, Linux
+- ✅ Isolated environment
+- ✅ Persistent data volume
+- ✅ Auto-restart on reboot
+- ✅ Easy updates: `docker pull krishcdbry/nexadb:latest`
+
 ### Manual Installation
 
 ```bash
@@ -788,22 +824,25 @@ python3 admin_server.py --port 9999 --data-dir ./nexadb_data
 - [x] TOON CLI tools
 - [x] Modern admin panel with TOON export
 - [x] Query editor with JSON/TOON toggle
-- [x] Homebrew distribution
+- [x] Homebrew distribution (macOS)
+- [x] Linux install script (Ubuntu, Fedora, Arch)
+- [x] **Docker image** (Windows, Mac, Linux) 🐳
 - [x] Production-grade NexaClient with reconnection
 
 ### 🚧 In Progress
 
+- [ ] Interactive CLI (`nexadb -u root -p`)
+- [ ] Cloud deployment templates (Railway, Render)
 - [ ] Full-text search
 - [ ] Secondary indexes (B-Tree, Hash)
-- [ ] Replication
 
 ### 🔮 Future
 
-- [ ] Sharding and clustering
+- [ ] Replication and clustering
 - [ ] GraphQL API
 - [ ] Time-series optimization
-- [ ] Docker image
 - [ ] Kubernetes operator
+- [ ] Hosted NexaDB Cloud
 
 ---
 
