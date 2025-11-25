@@ -406,8 +406,11 @@ def run_server(port=9999, data_dir=None):
     os.chdir(nexadb_dir)
 
     # Use same data directory as main server (./nexadb_data)
+    # Check environment variable first for consistency with other servers
     if data_dir is None:
-        data_dir = os.path.join(nexadb_dir, 'nexadb_data')
+        data_dir = os.getenv('NEXADB_DATA_DIR')
+        if data_dir is None:
+            data_dir = os.path.join(nexadb_dir, 'nexadb_data')
 
     # Initialize unified auth manager
     auth = UnifiedAuthManager(data_dir=data_dir)
