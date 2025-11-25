@@ -97,8 +97,13 @@ brew tap krishcdbry/nexadb
 # Install NexaDB
 brew install nexadb
 
-# Start the server
+# Start all services (Binary + REST + Admin)
 nexadb start
+
+# That's it! Now you have:
+# - Binary Protocol on port 6970 (10x faster!)
+# - JSON REST API on port 6969 (REST fallback)
+# - Admin Web UI on port 9999 (Web interface)
 
 # Access admin panel
 open http://localhost:9999
@@ -114,11 +119,13 @@ cd nexadb
 # Install Python dependencies
 pip3 install msgpack
 
-# Start binary server (port 6970)
-python3 nexadb_binary_server.py --port 6970 &
+# Start all services with one command
+python3 nexadb_server.py
 
-# Start admin HTTP server (port 9999)
-python3 admin_server.py --port 9999 &
+# This launches all three servers:
+# - Binary Protocol (port 6970) - 10x faster performance
+# - JSON REST API (port 6969) - REST fallback
+# - Admin Web UI (port 9999) - Web interface
 
 # Access admin panel
 open http://localhost:9999
@@ -466,30 +473,43 @@ NexaDB uses a custom binary protocol built on MessagePack for maximum performanc
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                   Admin Panel (HTTP)                    │
-│              http://localhost:9999                      │
-│  • Collection Browser  • Query Editor  • TOON Export   │
-└────────────────────┬────────────────────────────────────┘
-                     │
-┌────────────────────┴────────────────────────────────────┐
-│              Admin Server (Python HTTP)                 │
-│                    Port 9999                            │
-│  • Serves static files  • TOON export API              │
-└────────────────────┬────────────────────────────────────┘
-                     │
-┌────────────────────┴────────────────────────────────────┐
-│          Binary Protocol Server (Python)                │
-│                    Port 6970                            │
-│  • MessagePack protocol  • Connection pooling          │
-│  • TOON support  • Aggregation pipeline                │
-└────────────────────┬────────────────────────────────────┘
-                     │
-┌────────────────────┴────────────────────────────────────┐
-│              LSM-Tree Storage Engine                    │
-│  • WAL (Write-Ahead Log)  • MemTable (in-memory)       │
-│  • SSTables (disk)  • Compaction  • Crash recovery    │
-└─────────────────────────────────────────────────────────┘
+                    ┌──────────────────┐
+                    │  nexadb start    │
+                    │   (One Command)  │
+                    └────────┬─────────┘
+                             │
+         ┌───────────────────┼───────────────────┐
+         │                   │                   │
+         ▼                   ▼                   ▼
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│ Binary Protocol │ │   REST API      │ │   Admin UI      │
+│   Port 6970     │ │   Port 6969     │ │   Port 9999     │
+│  (10x faster!)  │ │  (REST fallback)│ │ (Web interface) │
+└────────┬────────┘ └────────┬────────┘ └────────┬────────┘
+         │                   │                   │
+         │  • MessagePack    │  • JSON API      │  • Static files
+         │  • TOON support   │  • HTTP/REST     │  • Query editor
+         │  • Connection     │  • CORS enabled  │  • TOON export
+         │    pooling        │  • Auth API      │  • Auth UI
+         │                   │                   │
+         └───────────────────┼───────────────────┘
+                             │
+                             ▼
+                ┌────────────────────────┐
+                │  Shared Data Directory │
+                │    (./nexadb_data)     │
+                └────────────┬───────────┘
+                             │
+                             ▼
+          ┌──────────────────────────────────────┐
+          │      LSM-Tree Storage Engine         │
+          │  • WAL (Write-Ahead Log)             │
+          │  • MemTable (in-memory sorted)       │
+          │  • SSTables (disk persistence)       │
+          │  • Automatic compaction              │
+          │  • Crash recovery                    │
+          │  • Unified authentication            │
+          └──────────────────────────────────────┘
 ```
 
 ---
@@ -522,10 +542,14 @@ nexadb/
 ### Run Tests
 
 ```bash
-# Start binary server
+# Start all services (recommended)
+python3 nexadb_server.py
+
+# Or start individual services for testing:
+# Binary server only:
 python3 nexadb_binary_server.py --port 6970
 
-# Start admin server
+# Admin UI only:
 python3 admin_server.py --port 9999
 
 # Test TOON export
@@ -537,14 +561,22 @@ python3 toon_cli.py import output.toon test_collection
 
 ### Configuration
 
-**Binary Server:**
-```python
-python3 nexadb_binary_server.py --host 0.0.0.0 --port 6970
+**All Services (recommended):**
+```bash
+# Start all three servers with one command
+python3 nexadb_server.py --data-dir ./nexadb_data
+
+# Or use --rest-only to start just the REST API
+python3 nexadb_server.py --rest-only
 ```
 
-**Admin Server:**
-```python
-python3 admin_server.py --port 9999
+**Individual Services:**
+```bash
+# Binary Protocol Server
+python3 nexadb_binary_server.py --host 0.0.0.0 --port 6970 --data-dir ./nexadb_data
+
+# Admin UI Server
+python3 admin_server.py --port 9999 --data-dir ./nexadb_data
 ```
 
 ---
