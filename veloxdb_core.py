@@ -508,27 +508,26 @@ class VeloxDB:
 
     def drop_collection(self, name: str) -> bool:
         """Delete entire collection"""
+        # Delete ALL keys related to this collection (documents, indexes, metadata)
+        collection_prefix = f"collection:{name}:"
+        all_collection_keys = list(self.engine.range_scan(collection_prefix, collection_prefix + '\xff'))
+
+        for key, _ in all_collection_keys:
+            self.engine.delete(key)
+
+        # Delete all vectors associated with this collection
+        vector_prefix = f"vector:{name}:"
+        all_vectors = list(self.engine.range_scan(vector_prefix, vector_prefix + '\xff'))
+
+        for key, _ in all_vectors:
+            self.engine.delete(key)
+
+        # Remove from in-memory cache
         if name in self.collections:
-            collection = self.collections[name]
-
-            # Delete all documents
-            prefix = f"collection:{name}:doc:"
-            all_docs = self.engine.range_scan(prefix, prefix + '\xff')
-
-            for key, _ in all_docs:
-                self.engine.delete(key)
-
-            # Delete all vectors associated with this collection
-            vector_prefix = f"vector:{name}:"
-            all_vectors = self.engine.range_scan(vector_prefix, vector_prefix + '\xff')
-
-            for key, _ in all_vectors:
-                self.engine.delete(key)
-
             del self.collections[name]
-            return True
 
-        return False
+        # Return True if we deleted anything
+        return len(all_collection_keys) > 0 or len(all_vectors) > 0
 
     def list_collections(self) -> List[str]:
         """List all collections (scans storage engine for existing collections)"""

@@ -103,6 +103,9 @@ class NexaDBBinaryProtocol:
     MSG_DELETE_USER = 0x0F  # Delete user (admin only)
     MSG_LIST_USERS = 0x10  # List all users (admin only)
     MSG_CHANGE_PASSWORD = 0x11  # Change user password
+    MSG_LIST_COLLECTIONS = 0x20  # List all collections
+    MSG_DROP_COLLECTION = 0x21  # Drop a collection
+    MSG_GET_VECTORS = 0x23  # Get vector statistics
 
     # Server → Client response types
     MSG_SUCCESS = 0x81
@@ -488,6 +491,18 @@ class NexaDBBinaryServer:
             elif msg_type == NexaDBBinaryProtocol.MSG_CHANGE_PASSWORD:
                 # CHANGE_PASSWORD - Change user password
                 self._handle_change_password(sock, data, address)
+
+            elif msg_type == NexaDBBinaryProtocol.MSG_LIST_COLLECTIONS:
+                # LIST_COLLECTIONS - List all collections
+                self._handle_list_collections(sock)
+
+            elif msg_type == NexaDBBinaryProtocol.MSG_DROP_COLLECTION:
+                # DROP_COLLECTION - Drop a collection
+                self._handle_drop_collection(sock, data)
+
+            elif msg_type == NexaDBBinaryProtocol.MSG_GET_VECTORS:
+                # GET_VECTORS - Get vector statistics
+                self._handle_get_vectors(sock)
 
             else:
                 self._send_error(sock, f"Unknown message type: {msg_type}")
@@ -1009,6 +1024,81 @@ class NexaDBBinaryServer:
             })
         else:
             self._send_error(sock, f"Failed to change password for user '{username}'")
+
+    def _handle_list_collections(self, sock: socket.socket):
+        """Handle LIST_COLLECTIONS message."""
+        try:
+            collections = self.db.list_collections()
+
+            self._send_success(sock, {
+                'collections': collections,
+                'count': len(collections)
+            })
+        except Exception as e:
+            self._send_error(sock, f"Failed to list collections: {str(e)}")
+
+    def _handle_drop_collection(self, sock: socket.socket, data: Dict[str, Any]):
+        """Handle DROP_COLLECTION message."""
+        collection_name = data.get('collection')
+
+        if not collection_name:
+            self._send_error(sock, "Missing 'collection' field")
+            return
+
+        try:
+            success = self.db.drop_collection(collection_name)
+
+            if success:
+                self._send_success(sock, {
+                    'collection': collection_name,
+                    'message': 'Collection dropped'
+                })
+            else:
+                self._send_error(sock, f"Collection '{collection_name}' not found")
+        except Exception as e:
+            self._send_error(sock, f"Failed to drop collection: {str(e)}")
+
+    def _handle_get_vectors(self, sock: socket.socket):
+        """Handle GET_VECTORS message - get vector index statistics."""
+        try:
+            from collections import defaultdict
+
+            # Scan for all vectors
+            vector_prefix = 'vector:'
+            all_vectors = list(self.db.engine.range_scan(vector_prefix, vector_prefix + '\xff'))
+
+            # Group by collection and get detailed info
+            vector_data = defaultdict(lambda: {'count': 0, 'documents': []})
+
+            for key, vector_bytes in all_vectors:
+                # key format: vector:{collection}:{doc_id}
+                parts = key.split(':')
+                if len(parts) >= 3:
+                    collection = parts[1]
+                    doc_id = parts[2]
+
+                    # Parse vector to get dimensions
+                    vector = json.loads(vector_bytes.decode('utf-8'))
+                    dimensions = len(vector)
+
+                    vector_data[collection]['count'] += 1
+                    vector_data[collection]['documents'].append({
+                        'doc_id': doc_id,
+                        'dimensions': dimensions
+                    })
+
+                    # Store dimensions for this collection (should be consistent)
+                    if 'dimensions' not in vector_data[collection]:
+                        vector_data[collection]['dimensions'] = dimensions
+
+            # Format response
+            self._send_success(sock, {
+                'status': 'success',
+                'total_vectors': len(all_vectors),
+                'collections': dict(vector_data)
+            })
+        except Exception as e:
+            self._send_error(sock, f"Failed to get vectors: {str(e)}")
 
     def get_stats(self) -> Dict[str, Any]:
         """Get server statistics."""

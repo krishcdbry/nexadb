@@ -404,13 +404,16 @@ class LSMStorageEngine:
         """
         results = {}
 
-        # Collect from all sources
-        for key, value in self.memtable.range_scan(start_key, end_key):
-            results[key] = value
+        # First, collect ALL keys from MemTable (including tombstones)
+        # This ensures tombstones block SSTable values
+        for k, v in self.memtable.data.items():
+            if start_key <= k <= end_key:
+                results[k] = v
 
+        # Then collect from SSTables, but only if not in MemTable
         for sstable in self.sstables:
             for key, value in sstable.range_scan(start_key, end_key):
-                if key not in results:  # MemTable has priority
+                if key not in results:  # MemTable has priority (including tombstones)
                     results[key] = value
 
         # Filter tombstones and sort

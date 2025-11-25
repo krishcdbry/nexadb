@@ -20,18 +20,18 @@ from typing import Dict, Any, Optional
 import hashlib
 import time
 
-# Import VeloxDB (now NexaDB)
+# Import NexaClient (MySQL-style v2.0 architecture)
 import sys
 sys.path.append('.')
-from veloxdb_core import VeloxDB
+from nexadb_client import NexaClient
 from unified_auth import UnifiedAuthManager
 
 
 class NexaDBHandler(BaseHTTPRequestHandler):
     """HTTP request handler for NexaDB API"""
 
-    # Class-level database instance (shared across requests)
-    db: VeloxDB = None
+    # Class-level client instance (connects to binary server - THE SOURCE OF TRUTH)
+    client: NexaClient = None
     auth: UnifiedAuthManager = None  # Unified authentication manager
     api_keys: Dict[str, str] = {}  # api_key -> username (for backward compatibility)
 
@@ -218,7 +218,7 @@ class NexaDBHandler(BaseHTTPRequestHandler):
 
         # List collections
         if path == '/collections':
-            collections = self.db.list_collections()
+            collections = self.client.list_collections()
             self._send_json({
                 'status': 'success',
                 'collections': collections,
@@ -226,12 +226,16 @@ class NexaDBHandler(BaseHTTPRequestHandler):
             })
             return
 
-        # Stats
+        # Stats (TODO: Add to binary protocol)
         if path == '/stats':
-            stats = self.db.stats()
+            # Note: stats() needs to be added to binary protocol/NexaClient
             self._send_json({
                 'status': 'success',
-                'stats': stats
+                'message': 'Stats endpoint will be available in next version',
+                'stats': {
+                    'collections': len(self.client.list_collections()),
+                    'version': '2.0.0-mysql-style'
+                }
             })
             return
 
@@ -239,13 +243,13 @@ class NexaDBHandler(BaseHTTPRequestHandler):
         parts = path.strip('/').split('/')
         if len(parts) == 2 and parts[0] == 'collections':
             collection_name = parts[1]
-            collection = self.db.collection(collection_name)
 
             # Parse query parameters
             query = json.loads(params.get('query', ['{}'])[0])
             limit = int(params.get('limit', [100])[0])
 
-            documents = collection.find(query, limit=limit)
+            # Query via NexaClient (connects to binary server)
+            documents = self.client.query(collection_name, query, limit=limit)
 
             self._send_json({
                 'status': 'success',
@@ -260,8 +264,8 @@ class NexaDBHandler(BaseHTTPRequestHandler):
             collection_name = parts[1]
             doc_id = parts[2]
 
-            collection = self.db.collection(collection_name)
-            document = collection.find_by_id(doc_id)
+            # Get via NexaClient (connects to binary server)
+            document = self.client.get(collection_name, doc_id)
 
             if document:
                 self._send_json({
@@ -370,9 +374,10 @@ class NexaDBHandler(BaseHTTPRequestHandler):
                 return
 
             collection_name = parts[1]
-            collection = self.db.collection(collection_name)
 
-            doc_id = collection.insert(body)
+            # Create via NexaClient (connects to binary server)
+            result = self.client.create(collection_name, body)
+            doc_id = result['document_id']
 
             self._send_json({
                 'status': 'success',
@@ -390,10 +395,11 @@ class NexaDBHandler(BaseHTTPRequestHandler):
                 return
 
             collection_name = parts[1]
-            collection = self.db.collection(collection_name)
-
             documents = body.get('documents', [])
-            doc_ids = collection.insert_many(documents)
+
+            # Batch write via NexaClient (connects to binary server)
+            result = self.client.batch_write(collection_name, documents)
+            doc_ids = result.get('document_ids', [])
 
             self._send_json({
                 'status': 'success',
@@ -407,12 +413,11 @@ class NexaDBHandler(BaseHTTPRequestHandler):
         # Query
         if len(parts) == 3 and parts[0] == 'collections' and parts[2] == 'query':
             collection_name = parts[1]
-            collection = self.db.collection(collection_name)
-
             query = body.get('query', {})
             limit = body.get('limit', 100)
 
-            documents = collection.find(query, limit=limit)
+            # Query via NexaClient (connects to binary server)
+            documents = self.client.query(collection_name, query, limit=limit)
 
             self._send_json({
                 'status': 'success',
@@ -422,20 +427,13 @@ class NexaDBHandler(BaseHTTPRequestHandler):
             })
             return
 
-        # Aggregation
+        # Aggregation (TODO: Add to binary protocol)
         if len(parts) == 3 and parts[0] == 'collections' and parts[2] == 'aggregate':
-            collection_name = parts[1]
-            collection = self.db.collection(collection_name)
-
-            pipeline = body.get('pipeline', [])
-            results = collection.aggregate(pipeline)
-
+            # Note: Aggregation needs to be added to binary protocol/NexaClient
             self._send_json({
-                'status': 'success',
-                'collection': collection_name,
-                'results': results,
-                'count': len(results)
-            })
+                'status': 'error',
+                'message': 'Aggregation endpoint will be available in next version. Use /query for now.'
+            }, 501)  # 501 Not Implemented
             return
 
         # Vector search
@@ -445,24 +443,14 @@ class NexaDBHandler(BaseHTTPRequestHandler):
             limit = body.get('limit', 10)
             dimensions = body.get('dimensions', 768)
 
-            vector_collection = self.db.vector_collection(collection_name, dimensions)
-            results = vector_collection.search(vector, limit=limit)
-
-            # Format results
-            formatted_results = [
-                {
-                    'document_id': doc_id,
-                    'similarity': float(similarity),
-                    'document': doc
-                }
-                for doc_id, similarity, doc in results
-            ]
+            # Vector search via NexaClient (connects to binary server)
+            results = self.client.vector_search(collection_name, vector, limit=limit, dimensions=dimensions)
 
             self._send_json({
                 'status': 'success',
                 'collection': collection_name,
-                'results': formatted_results,
-                'count': len(formatted_results)
+                'results': results,
+                'count': len(results)
             })
             return
 
@@ -531,18 +519,17 @@ class NexaDBHandler(BaseHTTPRequestHandler):
             collection_name = parts[1]
             doc_id = parts[2]
 
-            collection = self.db.collection(collection_name)
-            success = collection.update(doc_id, body)
-
-            if success:
+            try:
+                # Update via NexaClient (connects to binary server)
+                result = self.client.update(collection_name, doc_id, body)
                 self._send_json({
                     'status': 'success',
                     'collection': collection_name,
                     'document_id': doc_id,
                     'message': 'Document updated'
                 })
-            else:
-                self._send_error('Document not found', 404)
+            except Exception as e:
+                self._send_error(f'Document not found or update failed: {str(e)}', 404)
             return
 
         # Update user (admin only)
@@ -607,18 +594,17 @@ class NexaDBHandler(BaseHTTPRequestHandler):
             collection_name = parts[1]
             doc_id = parts[2]
 
-            collection = self.db.collection(collection_name)
-            success = collection.delete(doc_id)
-
-            if success:
+            try:
+                # Delete via NexaClient (connects to binary server)
+                result = self.client.delete(collection_name, doc_id)
                 self._send_json({
                     'status': 'success',
                     'collection': collection_name,
                     'document_id': doc_id,
                     'message': 'Document deleted'
                 })
-            else:
-                self._send_error('Document not found', 404)
+            except Exception as e:
+                self._send_error(f'Document not found or delete failed: {str(e)}', 404)
             return
 
         # Drop collection (requires admin permission - more destructive!)
@@ -629,7 +615,9 @@ class NexaDBHandler(BaseHTTPRequestHandler):
                 return
 
             collection_name = parts[1]
-            success = self.db.drop_collection(collection_name)
+
+            # Drop via NexaClient (connects to binary server)
+            success = self.client.drop_collection(collection_name)
 
             if success:
                 self._send_json({
@@ -689,9 +677,11 @@ class NexaDBServer:
         self.port = port
         self.data_dir = data_dir
 
-        # Initialize database
-        print(f"[INIT] Initializing NexaDB at {data_dir}")
-        NexaDBHandler.db = VeloxDB(data_dir)
+        # Initialize NexaClient (connects to binary server on port 6970 - THE SOURCE OF TRUTH)
+        print(f"[INIT] Connecting to NexaDB Binary Server (port 6970)")
+        NexaDBHandler.client = NexaClient(host='localhost', port=6970)
+        NexaDBHandler.client.connect()
+        print(f"[INIT] ✅ Connected to binary server (MySQL-style v2.0 architecture)")
 
         # Initialize unified authentication
         print(f"[SECURITY] Initializing unified authentication")
@@ -796,7 +786,8 @@ class NexaDBServer:
         """Stop server"""
         if self.server:
             self.server.shutdown()
-            NexaDBHandler.db.close()
+            if NexaDBHandler.client:
+                NexaDBHandler.client.disconnect()
             print("[SHUTDOWN] Server stopped")
 
 

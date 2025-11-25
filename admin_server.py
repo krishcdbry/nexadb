@@ -316,33 +316,24 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
             }).encode())
 
     def handle_get_collections(self):
-        """Handle GET /api/collections - fetch all collections from REST API."""
+        """Handle GET /api/collections - fetch all collections from binary server."""
         try:
-            import urllib.request
-            import urllib.error
+            from nexadb_client import NexaClient
 
-            # Fetch collections from REST API (port 6969)
-            url = 'http://localhost:6969/collections'
-            req = urllib.request.Request(url)
-
-            with urllib.request.urlopen(req, timeout=5) as response:
-                data = json.loads(response.read().decode())
+            # Connect to binary server (THE SINGLE SOURCE OF TRUTH)
+            with NexaClient(host='localhost', port=6970) as db:
+                collections = db.list_collections()
 
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
 
-                self.wfile.write(json.dumps(data).encode())
+                self.wfile.write(json.dumps({
+                    'collections': collections,
+                    'count': len(collections)
+                }).encode())
 
-        except urllib.error.URLError as e:
-            self.send_response(503)
-            self.send_header('Content-Type', 'application/json')
-            self.end_headers()
-            self.wfile.write(json.dumps({
-                'error': 'REST API not available',
-                'details': str(e)
-            }).encode())
         except Exception as e:
             self.send_response(500)
             self.send_header('Content-Type', 'application/json')
@@ -352,58 +343,20 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
             }).encode())
 
     def handle_get_vectors(self):
-        """Handle GET /api/vectors - get vector index statistics."""
+        """Handle GET /api/vectors - get vector index statistics from binary server."""
         try:
-            from veloxdb_core import VeloxDB
-            from collections import defaultdict
+            from nexadb_client import NexaClient
 
-            # Initialize database to scan vectors
-            data_dir = os.getenv('NEXADB_DATA_DIR', './nexadb_data')
-            db = VeloxDB(data_dir)
+            # Connect to binary server (THE SINGLE SOURCE OF TRUTH)
+            with NexaClient(host='localhost', port=6970) as db:
+                result = db.get_vectors()
 
-            # Scan for all vectors
-            vector_prefix = 'vector:'
-            all_vectors = list(db.engine.range_scan(vector_prefix, vector_prefix + '\xff'))
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
 
-            # Group by collection and get detailed info
-            vector_data = defaultdict(lambda: {'count': 0, 'documents': []})
-
-            for key, vector_bytes in all_vectors:
-                # key format: vector:{collection}:{doc_id}
-                parts = key.split(':')
-                if len(parts) >= 3:
-                    collection = parts[1]
-                    doc_id = parts[2]
-
-                    # Parse vector to get dimensions
-                    vector = json.loads(vector_bytes.decode('utf-8'))
-                    dimensions = len(vector)
-
-                    vector_data[collection]['count'] += 1
-                    vector_data[collection]['documents'].append({
-                        'doc_id': doc_id,
-                        'dimensions': dimensions
-                    })
-
-                    # Store dimensions for this collection (should be consistent)
-                    if 'dimensions' not in vector_data[collection]:
-                        vector_data[collection]['dimensions'] = dimensions
-
-            db.close()
-
-            # Format response
-            result = {
-                'status': 'success',
-                'total_vectors': len(all_vectors),
-                'collections': dict(vector_data)
-            }
-
-            self.send_response(200)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-
-            self.wfile.write(json.dumps(result).encode())
+                self.wfile.write(json.dumps(result).encode())
 
         except Exception as e:
             self.send_response(500)
@@ -416,6 +369,8 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
     def handle_toon_export(self, parsed_path):
         """Handle TOON export API request."""
         try:
+            from nexadb_client import NexaClient
+
             # Parse query parameters
             params = parse_qs(parsed_path.query)
             collection = params.get('collection', [''])[0]
@@ -424,21 +379,10 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_error(400, "Missing collection parameter")
                 return
 
-            # Connect to binary server
-            client = sock.socket(sock.AF_INET, sock.SOCK_STREAM)
-            client.connect(('localhost', 6970))
+            # Connect to binary server (THE SINGLE SOURCE OF TRUTH)
+            with NexaClient(host='localhost', port=6970) as db:
+                response = db.export_toon(collection)
 
-            # Handshake
-            client.sendall(pack_message(MSG_CONNECT, {'client': 'admin_server'}))
-            msg_type, response = unpack_message(client)
-
-            # Export to TOON
-            client.sendall(pack_message(MSG_EXPORT_TOON, {'collection': collection}))
-            msg_type, response = unpack_message(client)
-
-            client.close()
-
-            if msg_type == MSG_SUCCESS:
                 # Return TOON data as JSON response
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
@@ -453,8 +397,6 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
                 }
 
                 self.wfile.write(json.dumps(result).encode())
-            else:
-                self.send_error(500, f"Export failed: {response.get('error', 'Unknown error')}")
 
         except Exception as e:
             self.send_error(500, f"Server error: {str(e)}")
