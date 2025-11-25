@@ -130,6 +130,11 @@
             try {
                 await auth.login(username, password);
 
+                // Verify localStorage was saved
+                if (!auth.isLoggedIn()) {
+                    throw new Error('Session not saved properly');
+                }
+
                 // Show success and redirect
                 loginAlert.innerHTML = `
                     <div class="alert alert-info">
@@ -137,6 +142,7 @@
                     </div>
                 `;
 
+                // Small delay for better UX, but localStorage is already saved
                 setTimeout(() => {
                     window.location.href = '/admin_panel/index.html';
                 }, 500);
