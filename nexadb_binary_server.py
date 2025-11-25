@@ -554,9 +554,20 @@ class NexaDBBinaryServer:
             self._send_error(sock, "Missing 'collection' or 'data' field")
             return
 
-        # Insert document
-        collection = self.db.collection(collection_name)
-        doc_id = collection.insert(document)
+        # Check if document has vector field for automatic indexing
+        if 'vector' in document and isinstance(document['vector'], list):
+            # Auto-index vector for similarity search
+            vector = document['vector']
+            dimensions = len(vector)
+
+            # Insert via vector collection (indexes vector automatically)
+            vector_collection = self.db.vector_collection(collection_name, dimensions)
+            doc_data = {k: v for k, v in document.items() if k != 'vector'}
+            doc_id = vector_collection.insert(doc_data, vector)
+        else:
+            # Regular insert (no vector)
+            collection = self.db.collection(collection_name)
+            doc_id = collection.insert(document)
 
         self._send_success(sock, {
             'collection': collection_name,
@@ -690,9 +701,36 @@ class NexaDBBinaryServer:
             self._send_error(sock, "Missing 'collection' or 'documents' field")
             return
 
-        # Bulk insert
-        collection = self.db.collection(collection_name)
-        doc_ids = collection.insert_many(documents)
+        # Check if documents have vector fields for automatic indexing
+        has_vectors = any('vector' in doc and isinstance(doc.get('vector'), list) for doc in documents)
+
+        if has_vectors:
+            # Use vector collection for automatic indexing
+            # Get dimensions from first document with vector
+            dimensions = None
+            for doc in documents:
+                if 'vector' in doc and isinstance(doc['vector'], list):
+                    dimensions = len(doc['vector'])
+                    break
+
+            vector_collection = self.db.vector_collection(collection_name, dimensions)
+            doc_ids = []
+
+            for doc in documents:
+                if 'vector' in doc and isinstance(doc['vector'], list):
+                    vector = doc['vector']
+                    doc_data = {k: v for k, v in doc.items() if k != 'vector'}
+                    doc_id = vector_collection.insert(doc_data, vector)
+                    doc_ids.append(doc_id)
+                else:
+                    # Document without vector - insert normally
+                    collection = self.db.collection(collection_name)
+                    doc_id = collection.insert(doc)
+                    doc_ids.append(doc_id)
+        else:
+            # Regular bulk insert (no vectors)
+            collection = self.db.collection(collection_name)
+            doc_ids = collection.insert_many(documents)
 
         self._send_success(sock, {
             'collection': collection_name,
