@@ -1409,7 +1409,7 @@
                 return;
             }
 
-            if (!queryStr || queryStr === '{ }') {
+            if (!queryStr) {
                 showToast('error', 'Error', 'Please enter a query');
                 return;
             }
