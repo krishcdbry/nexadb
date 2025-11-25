@@ -218,6 +218,38 @@ docker rm nexadb
 - ✅ Auto-restart on reboot
 - ✅ Easy updates: `docker pull krishcdbry/nexadb:latest`
 
+### Cloud Deployment (Railway, Render, Fly.io)
+
+**Deploy to Railway (1-Click):**
+```bash
+# Clone and deploy
+git clone https://github.com/krishcdbry/nexadb.git
+cd nexadb
+railway up
+```
+
+**Deploy to Render:**
+1. Fork the repository
+2. Connect to Render
+3. Select `render.yaml` for automatic configuration
+4. Deploy!
+
+**Deploy to Fly.io:**
+```bash
+# Clone and deploy
+git clone https://github.com/krishcdbry/nexadb.git
+cd nexadb
+fly launch
+fly deploy
+```
+
+**What you get:**
+- ✅ Auto-scaling and load balancing
+- ✅ Persistent volumes for data
+- ✅ HTTPS endpoints
+- ✅ Global CDN distribution
+- ✅ Automatic backups
+
 ### Manual Installation
 
 ```bash
@@ -238,6 +270,36 @@ python3 nexadb_server.py
 
 # Access admin panel
 open http://localhost:9999
+```
+
+### Interactive CLI
+
+```bash
+# Start the interactive shell
+python3 nexadb_cli.py -u root -p
+Password: ********
+
+Connected to NexaDB v2.0.0
+
+nexadb> USE movies
+✓ Switched to collection 'movies'
+
+nexadb(movies)> CREATE {"title": "The Matrix", "year": 1999}
+✓ Document created: doc_abc123
+
+nexadb(movies)> QUERY {"year": {"$gte": 2000}}
+✓ Found 5 document(s)
+
+nexadb(movies)> VECTOR_SEARCH [0.5, 0.2, 0.98, 0.5] 3 4
+✓ Found 3 similar document(s):
+[1] 98.91% match
+{
+  "title": "Blade Runner 2049",
+  "year": 2017
+}
+
+nexadb(movies)> EXIT
+Goodbye! 👋
 ```
 
 ### 5-Minute Quick Start: Movie Semantic Search
@@ -827,14 +889,15 @@ python3 admin_server.py --port 9999 --data-dir ./nexadb_data
 - [x] Homebrew distribution (macOS)
 - [x] Linux install script (Ubuntu, Fedora, Arch)
 - [x] **Docker image** (Windows, Mac, Linux) 🐳
+- [x] **Interactive CLI** (`nexadb-cli -u root -p`) 💻
+- [x] **Cloud deployment** (Railway, Render, Fly.io) ☁️
 - [x] Production-grade NexaClient with reconnection
 
 ### 🚧 In Progress
 
-- [ ] Interactive CLI (`nexadb -u root -p`)
-- [ ] Cloud deployment templates (Railway, Render)
 - [ ] Full-text search
 - [ ] Secondary indexes (B-Tree, Hash)
+- [ ] Replication support
 
 ### 🔮 Future
 

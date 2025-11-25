@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: nexadb
+    env: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    dockerContext: ./
+    autoDeploy: true
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    disk:
+      name: nexadb-data
+      mountPath: /data
+      sizeGB: 10
+    healthCheckPath: /
