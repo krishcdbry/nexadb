@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexaDB v1.2.0 - Production-Grade AI Database</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Floating Header -->
+    <div class="floating-header">
+        <button class="theme-switcher" onclick="toggleTheme()" title="Toggle theme">
+            <span id="themeIcon">☀️</span>
+        </button>
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div id="userInfo" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px;">
+                <div style="font-size: 13px; color: var(--text-secondary);" id="username">Loading...</div>
+                <div style="font-size: 11px; color: var(--text-tertiary); padding: 2px 6px; background: var(--bg-tertiary); border-radius: 4px;" id="userRole">...</div>
+            </div>
+            <button class="btn btn-sm btn-secondary" onclick="auth.logout()" title="Logout">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Logout
+            </button>
+            <div id="connectionStatus" class="connection-status status-disconnected">
+                <span class="status-dot"></span>
+                <span>Disconnected</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <!-- Toggle Button -->
+            <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"/>
+                </svg>
+            </button>
+
+            <!-- Logo -->
+            <div class="logo">
+                <div class="logo-icon">
+                    <img id="logoImage" src="/logo-light.svg" alt="NexaDB Logo">
+                </div>
+            </div>
+
+            <!-- Navigation Menu -->
+            <div class="nav-menu">
+                <div class="nav-item active" onclick="switchView('dashboard')">
+                    <div class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" rx="1"/>
+                            <rect x="14" y="3" width="7" height="7" rx="1"/>
+                            <rect x="14" y="14" width="7" height="7" rx="1"/>
+                            <rect x="3" y="14" width="7" height="7" rx="1"/>
+                        </svg>
+                    </div>
+                    <span>Dashboard</span>
+                </div>
+                <div class="nav-item" onclick="switchView('collections')">
+                    <div class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                        </svg>
+                    </div>
+                    <span>Collections</span>
+                </div>
+                <div class="nav-item" onclick="switchView('query')">
+                    <div class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="16 18 22 12 16 6"/>
+                            <polyline points="8 6 2 12 8 18"/>
+                        </svg>
+                    </div>
+                    <span>Query Editor</span>
+                </div>
+                <div class="nav-item" onclick="switchView('monitoring')">
+                    <div class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                        </svg>
+                    </div>
+                    <span>Monitoring</span>
+                </div>
+                <div class="nav-item" id="usersNavItem" onclick="switchView('users')" style="display: none;">
+                    <div class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                    </div>
+                    <span>Users</span>
+                </div>
+            </div>
+
+            <!-- Collections List (only visible in collections view) -->
+            <div id="sidebarCollections" style="display: none;">
+                <div class="sidebar-header">
+                    <h3>Collections</h3>
+                    <button class="new-collection-btn" id="newCollectionBtn" onclick="showCreateCollectionModal()">
+                        <span>+</span>
+                        <span>New Collection</span>
+                    </button>
+                    <input type="text" class="collection-search" placeholder="Search collections..." id="collectionSearch" oninput="filterCollections()">
+                </div>
+                <div class="collections-list" id="collectionsList">
+                    <div class="empty-collections">
+                        <div class="empty-collections-icon">📦</div>
+                        <p>No collections yet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="content-header">
+                <div class="content-title">
+                    <h2 id="contentTitle">Dashboard</h2>
+                    <div class="content-subtitle" id="contentSubtitle">Overview of your database</div>
+                </div>
+                <div class="toolbar" id="toolbar" style="display: none;">
+                </div>
+            </div>
+
+            <div class="content-area">
+                <!-- Dashboard View -->
+                <div id="dashboardView" class="view-container active">
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">Documents</div>
+                                <div class="metric-icon" style="background: rgba(139, 92, 246, 0.15); color: var(--primary);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14 2 14 8 20 8"/>
+                                        <line x1="16" y1="13" x2="8" y2="13"/>
+                                        <line x1="16" y1="17" x2="8" y2="17"/>
+                                        <polyline points="10 9 9 9 8 9"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value" id="totalDocuments">0</div>
+                            <div class="metric-change positive" id="documentsChange">
+                                <span>↑ 0%</span>
+                                <span>from last hour</span>
+                            </div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">Collections</div>
+                                <div class="metric-icon" style="background: rgba(99, 102, 241, 0.15); color: var(--secondary);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value" id="totalCollections">0</div>
+                            <div class="metric-change" id="collectionsChange">
+                                <span>No change</span>
+                            </div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">Storage</div>
+                                <div class="metric-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--success);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value" id="totalStorage">0 KB</div>
+                            <div class="metric-change" id="storageChange">
+                                <span>Estimated size</span>
+                            </div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">Operations</div>
+                                <div class="metric-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--warning);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value" id="totalOperations">0</div>
+                            <div class="metric-change positive" id="operationsChange">
+                                <span>Per minute</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Operations Over Time</div>
+                            <div>
+                                <select class="editor-select" id="chartTimeRange" onchange="updateChart()">
+                                    <option value="1h">Last Hour</option>
+                                    <option value="6h">Last 6 Hours</option>
+                                    <option value="24h">Last 24 Hours</option>
+                                    <option value="7d">Last 7 Days</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="chart-canvas-wrapper">
+                            <canvas id="operationsChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Recent Collections</div>
+                        </div>
+                        <div id="recentCollectionsList">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📦</div>
+                                <h3>No collections yet</h3>
+                                <p>Create your first collection to get started</p>
+                                <button class="btn btn-primary" onclick="showCreateCollectionModal()">
+                                    <span>+</span>
+                                    <span>Create Collection</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Collections View -->
+                <div id="collectionsView" class="view-container">
+                    <div class="table-browser">
+                        <div class="table-toolbar">
+                            <div class="table-actions">
+                                <div class="search-mode-toggle" style="margin-right: 12px;">
+                                    <button class="mode-btn active" id="jsonViewBtn" onclick="setViewMode('json')">
+                                        JSON
+                                    </button>
+                                    <button class="mode-btn" id="tableViewBtn" onclick="setViewMode('table')">
+                                        Table
+                                    </button>
+                                </div>
+                                <button class="btn btn-sm btn-secondary" onclick="toggleFilters()">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                                    </svg>
+                                    <span>Filters</span>
+                                </button>
+                                <button class="btn btn-sm btn-secondary" onclick="toggleSort()">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="12" y1="5" x2="12" y2="19"/>
+                                        <polyline points="19 12 12 19 5 12"/>
+                                    </svg>
+                                    <span>Sort</span>
+                                </button>
+                                <button class="btn btn-sm btn-secondary" onclick="toggleColumns()" style="position: relative;" id="columnsBtn">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="21" y1="10" x2="3" y2="10"/>
+                                        <line x1="21" y1="6" x2="3" y2="6"/>
+                                        <line x1="21" y1="14" x2="3" y2="14"/>
+                                        <line x1="21" y1="18" x2="3" y2="18"/>
+                                    </svg>
+                                    <span>Columns</span>
+                                    <div class="columns-panel" id="columnsPanel">
+                                        <div class="column-checkbox">
+                                            <input type="checkbox" id="col_id" checked onchange="toggleColumn('_id')">
+                                            <label for="col_id">ID</label>
+                                        </div>
+                                        <div class="column-checkbox">
+                                            <input type="checkbox" id="col_created" checked onchange="toggleColumn('_created_at')">
+                                            <label for="col_created">Created</label>
+                                        </div>
+                                        <div class="column-checkbox">
+                                            <input type="checkbox" id="col_updated" checked onchange="toggleColumn('_updated_at')">
+                                            <label for="col_updated">Updated</label>
+                                        </div>
+                                    </div>
+                                </button>
+                            </div>
+                            <div class="table-actions">
+                                <button class="btn btn-sm btn-danger" id="deleteSelectedBtn" onclick="showBulkDeleteModal()" style="display: none;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="3 6 5 6 21 6"/>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                    </svg>
+                                    <span id="deleteSelectedText">Delete Selected</span>
+                                </button>
+                                <button class="btn btn-sm btn-success" id="addRecordBtn" onclick="showInsertDocumentModal()">
+                                    <span>+</span>
+                                    <span>Add Record</span>
+                                </button>
+                                <button class="btn btn-sm btn-primary" onclick="exportToTOON()" title="Export collection to TOON format (40-50% token reduction)">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                        <polyline points="7 10 12 15 17 10"/>
+                                        <line x1="12" y1="15" x2="12" y2="3"/>
+                                    </svg>
+                                    <span>Export TOON</span>
+                                </button>
+                                <button class="btn btn-sm btn-secondary" onclick="loadDocuments()">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="23 4 23 10 17 10"/>
+                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                    </svg>
+                                    <span>Refresh</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="filters-panel" id="filtersPanel">
+                            <div class="filter-row">
+                                <select class="filter-select" id="filterField">
+                                    <option value="">Select field...</option>
+                                    <option value="_id">ID</option>
+                                    <option value="_created_at">Created At</option>
+                                    <option value="_updated_at">Updated At</option>
+                                </select>
+                                <select class="filter-select" id="filterOperator">
+                                    <option value="$eq">equals</option>
+                                    <option value="$ne">not equals</option>
+                                    <option value="$gt">greater than</option>
+                                    <option value="$gte">greater than or equal</option>
+                                    <option value="$lt">less than</option>
+                                    <option value="$lte">less than or equal</option>
+                                    <option value="$regex">contains</option>
+                                </select>
+                                <input type="text" class="filter-input" id="filterValue" placeholder="Value...">
+                                <button class="btn btn-sm btn-primary" onclick="applyFilter()">Apply</button>
+                                <button class="btn btn-sm btn-secondary" onclick="clearFilters()">Clear</button>
+                            </div>
+                        </div>
+
+                        <div class="filters-panel" id="sortPanel">
+                            <div class="filter-row">
+                                <select class="filter-select" id="sortField">
+                                    <option value="">Select field...</option>
+                                    <option value="_id">ID</option>
+                                    <option value="_created_at">Created At</option>
+                                    <option value="_updated_at">Updated At</option>
+                                </select>
+                                <select class="filter-select" id="sortOrder">
+                                    <option value="1">Ascending</option>
+                                    <option value="-1">Descending</option>
+                                </select>
+                                <button class="btn btn-sm btn-primary" onclick="applySort()">Apply</button>
+                                <button class="btn btn-sm btn-secondary" onclick="clearSort()">Clear</button>
+                            </div>
+                        </div>
+
+                        <div class="table-container" id="tableContainer">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">
+                                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+                                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                        <path d="M3 9h18M9 3v18"/>
+                                    </svg>
+                                </div>
+                                <h3>Select a collection</h3>
+                                <p>Choose a collection from the sidebar to view its documents</p>
+                            </div>
+                        </div>
+
+                        <div class="pagination" id="pagination" style="display: none;">
+                            <div class="pagination-info" id="paginationInfo">
+                                Showing 0-0 of 0 rows
+                            </div>
+                            <div class="pagination-controls">
+                                <button class="btn btn-sm btn-secondary" id="prevPageBtn" onclick="previousPage()">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="15 18 9 12 15 6"/>
+                                    </svg>
+                                </button>
+                                <span id="pageNumbers" style="font-size: 14px; color: var(--text-secondary); padding: 0 12px;">Page 1</span>
+                                <button class="btn btn-sm btn-secondary" id="nextPageBtn" onclick="nextPage()">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="9 18 15 12 9 6"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Query Editor View -->
+                <div id="queryView" class="view-container">
+                    <div class="query-editor-container">
+                        <div class="query-history">
+                            <div class="history-header">Query History</div>
+                            <div id="queryHistoryList">
+                                <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+                                    <p>No queries yet</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="query-editor-main">
+                            <div class="editor-toolbar">
+                                <div class="editor-selects">
+                                    <select class="editor-select" id="queryEditorCollection" onchange="updateEditorCollection()">
+                                        <option value="">Select collection...</option>
+                                    </select>
+                                    <select class="editor-select" id="queryTemplate" onchange="loadQueryTemplate()">
+                                        <option value="">Quick Templates...</option>
+                                        <option value="find_all">Find All</option>
+                                        <option value="find_with_filter">Find with Filter</option>
+                                        <option value="aggregation">Aggregation Pipeline</option>
+                                    </select>
+                                </div>
+                                <div style="display: flex; gap: 12px;">
+                                    <button class="btn btn-sm btn-primary" onclick="executeEditorQuery()">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polygon points="5 3 19 12 5 21 5 3"/>
+                                        </svg>
+                                        <span>Run</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-secondary" onclick="clearEditor()">Clear</button>
+                                </div>
+                            </div>
+
+                            <div class="code-editor">
+                                <div class="editor-tabs">
+                                    <button class="editor-tab active">Query</button>
+                                </div>
+                                <div class="editor-content">
+                                    <textarea class="code-textarea" id="queryEditorTextarea" placeholder='Enter your query in JSON format, for example:
+
+{
+  "age": {"$gt": 25},
+  "status": "active"
+}
+
+Or use aggregation pipeline:
+
+[
+  {"$match": {"age": {"$gte": 30}}},
+  {"$group": {"_id": "$city", "count": {"$sum": 1}}}
+]'>{ }</textarea>
+                                </div>
+                            </div>
+
+                            <div class="editor-results" id="editorResults" style="display: none;">
+                                <div class="results-header" style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span>Results</span>
+                                    <div style="display: flex; gap: 12px; align-items: center;">
+                                        <div class="search-mode-toggle" style="margin: 0;">
+                                            <button class="mode-btn active" id="resultJsonBtn" onclick="setResultFormat('json')">
+                                                JSON
+                                            </button>
+                                            <button class="mode-btn" id="resultToonBtn" onclick="setResultFormat('toon')">
+                                                TOON
+                                            </button>
+                                        </div>
+                                        <button class="btn-secondary" onclick="copyResults()" style="padding: 8px 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                            </svg>
+                                            Copy
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="results-content results-editor" id="editorResultsContent"></div>
+                                <div id="editorToonStats" style="display: none; padding: 16px; background: var(--bg-secondary); border-top: 1px solid var(--border-color); border-radius: 0 0 12px 12px;">
+                                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+                                        <div>
+                                            <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">JSON Size</div>
+                                            <div style="font-size: 18px; font-weight: 600; color: var(--text-primary);" id="editorJsonSize">-</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">Token Reduction</div>
+                                            <div style="font-size: 18px; font-weight: 600; color: #10b981;" id="editorReduction">-</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px;">Est. Savings (1M calls)</div>
+                                            <div style="font-size: 18px; font-weight: 600; color: #10b981;" id="editorSavings">-</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monitoring View -->
+                <div id="monitoringView" class="view-container">
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">Avg Response Time</div>
+                                <div class="metric-icon" style="background: rgba(139, 92, 246, 0.15); color: var(--primary);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <polyline points="12 6 12 12 16 14"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value" id="avgResponseTime">0ms</div>
+                            <div class="metric-change positive">
+                                <span>Last 100 operations</span>
+                            </div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">Active Connections</div>
+                                <div class="metric-icon" style="background: rgba(99, 102, 241, 0.15); color: var(--secondary);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                        <circle cx="9" cy="7" r="4"/>
+                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value" id="activeConnections">1</div>
+                            <div class="metric-change">
+                                <span>Current session</span>
+                            </div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">Cache Hit Rate</div>
+                                <div class="metric-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--success);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                        <polyline points="22 4 12 14.01 9 11.01"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value" id="cacheHitRate">--%</div>
+                            <div class="metric-change">
+                                <span>N/A for HTTP mode</span>
+                            </div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">Uptime</div>
+                                <div class="metric-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--warning);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value" style="font-size: 36px;" id="uptime">0h 0m</div>
+                            <div class="metric-change positive">
+                                <span>Since connection</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Real-time Operations</div>
+                        </div>
+                        <div class="chart-canvas-wrapper">
+                            <canvas id="monitoringChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Database Status</div>
+                        </div>
+                        <div id="databaseStatus" style="padding: 20px;">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                                <p>Loading status...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users View (Admin Only) -->
+                <div id="usersView" class="view-container">
+                    <div class="table-browser">
+                        <div class="table-toolbar">
+                            <div class="table-actions">
+                                <h3 style="margin: 0; font-size: 18px; color: var(--text-primary);">User Management</h3>
+                            </div>
+                            <div class="table-actions">
+                                <button class="btn btn-sm btn-success" onclick="showCreateUserModal()">
+                                    <span>+</span>
+                                    <span>Create User</span>
+                                </button>
+                                <button class="btn btn-sm btn-secondary" onclick="loadUsers()">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="23 4 23 10 17 10"/>
+                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                    </svg>
+                                    <span>Refresh</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="table-container" id="usersTableContainer">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">
+                                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                        <circle cx="9" cy="7" r="4"/>
+                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                                    </svg>
+                                </div>
+                                <h3>Loading users...</h3>
+                                <p>Fetching user list from database</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create User Modal -->
+    <div class="modal-overlay" id="createUserModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Create New User</h3>
+                <button class="modal-close" onclick="closeModal('createUserModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Username *</label>
+                    <input type="text" class="form-input" id="newUsername" placeholder="e.g., john_doe">
+                    <p class="form-hint">Alphanumeric characters and underscores only</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password *</label>
+                    <input type="password" class="form-input" id="newUserPassword" placeholder="Strong password">
+                    <p class="form-hint">Minimum 8 characters recommended</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Role *</label>
+                    <select class="form-input" id="newUserRole">
+                        <option value="read">Read - Can query and view data</option>
+                        <option value="write">Write - Can insert, update, delete</option>
+                        <option value="admin">Admin - Full access including user management</option>
+                        <option value="guest">Guest - Limited read access</option>
+                    </select>
+                    <p class="form-hint">Defines what operations the user can perform</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('createUserModal')">Cancel</button>
+                <button class="btn btn-success" onclick="createUser()">Create User</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div class="modal-overlay" id="editUserModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="editUserModalTitle">Edit User</h3>
+                <button class="modal-close" onclick="closeModal('editUserModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-input" id="editUsername" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">New Password <span id="passwordRequiredLabel" style="color: var(--danger); display: none;">*</span> <span id="passwordOptionalLabel">(leave blank to keep current)</span></label>
+                    <input type="password" class="form-input" id="editUserPassword" placeholder="Enter new password">
+                </div>
+                <div class="form-group" id="editRoleGroup">
+                    <label class="form-label">Role *</label>
+                    <select class="form-input" id="editUserRole">
+                        <option value="read">Read</option>
+                        <option value="write">Write</option>
+                        <option value="admin">Admin</option>
+                        <option value="guest">Guest</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('editUserModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="updateUser()" id="updateUserBtn">Update User</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Created Success Modal -->
+    <div class="modal-overlay" id="userCreatedModal">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>User Created Successfully</h3>
+                <button class="modal-close" onclick="closeModal('userCreatedModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="padding: 12px 16px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; margin-bottom: 24px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 24px;">✓</div>
+                        <div>
+                            <div style="font-weight: 600; color: var(--success); margin-bottom: 4px;">User account created</div>
+                            <div style="font-size: 13px; color: var(--text-secondary);">
+                                Save these credentials now - you won't be able to see the password again!
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" class="form-input" id="createdUsername" readonly style="flex: 1;">
+                        <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('createdUsername')" title="Copy username">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" class="form-input" id="createdPassword" readonly style="flex: 1;">
+                        <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('createdPassword')" title="Copy password">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Role</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" class="form-input" id="createdRole" readonly style="flex: 1;">
+                        <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('createdRole')" title="Copy role">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">API Key</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" class="form-input" id="createdApiKey" readonly style="flex: 1; font-family: 'Monaco', 'Menlo', monospace; font-size: 12px;">
+                        <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('createdApiKey')" title="Copy API key">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <p class="form-hint">Use this API key for REST API authentication</p>
+                </div>
+
+                <div style="padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; margin-top: 20px;">
+                    <div style="font-size: 13px; color: var(--text-secondary);">
+                        <strong style="color: var(--text-primary);">Important:</strong> Make sure to save these credentials in a secure location. The password cannot be retrieved later.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeModal('userCreatedModal')">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Collection Modal -->
+    <div class="modal-overlay" id="createCollectionModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Create New Collection</h3>
+                <button class="modal-close" onclick="closeModal('createCollectionModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Collection Name *</label>
+                    <input type="text" class="form-input" id="newCollectionName" placeholder="e.g., users, products, orders">
+                    <p class="form-hint">Use lowercase with underscores (e.g., user_profiles)</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description (Optional)</label>
+                    <input type="text" class="form-input" id="newCollectionDescription" placeholder="What will this collection store?">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('createCollectionModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="createCollection()">Create Collection</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Insert Document Modal -->
+    <div class="modal-overlay" id="insertDocumentModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Insert Document</h3>
+                <button class="modal-close" onclick="closeModal('insertDocumentModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">JSON Document *</label>
+                    <textarea class="form-input" id="insertDocumentData" placeholder='{\n  "name": "Alice",\n  "age": 28,\n  "email": "alice@example.com"\n}'></textarea>
+                    <p class="form-hint">Enter valid JSON data</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('insertDocumentModal')">Cancel</button>
+                <button class="btn btn-success" onclick="insertDocument()">Insert Document</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Document Modal -->
+    <div class="modal-overlay" id="editDocumentModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Edit Document</h3>
+                <button class="modal-close" onclick="closeModal('editDocumentModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Document ID</label>
+                    <input type="text" class="form-input" id="editDocumentId" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Updates (JSON)</label>
+                    <textarea class="form-input" id="editDocumentData" placeholder='{\n  "age": 29,\n  "status": "active"\n}'></textarea>
+                    <p class="form-hint">Enter fields to update</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('editDocumentModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="updateDocument()">Update Document</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Collection Modal -->
+    <div class="modal-overlay" id="deleteCollectionModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Delete Collection</h3>
+                <button class="modal-close" onclick="closeModal('deleteCollectionModal'); clearDeleteInput();">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="padding: 8px 16px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; margin-bottom: 24px;">
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                        <div style="color: var(--danger); font-size: 24px; line-height: 1;">⚠️</div>
+                        <div>
+                            <div style="font-weight: 700; color: var(--danger); margin-bottom: 4px;">Warning: This action cannot be undone!</div>
+                            <div style="font-size: 14px; color: var(--text-secondary);">
+                                You are about to permanently delete the collection "<strong id="deleteCollectionName"></strong>" and all of its documents.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Type <strong>DELETE</strong> to confirm *</label>
+                    <input type="text" class="form-input" id="deleteConfirmationInput" placeholder="Type DELETE to confirm" autocomplete="off">
+                    <p class="form-hint">This action is permanent and cannot be reversed</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('deleteCollectionModal'); clearDeleteInput();">Cancel</button>
+                <button class="btn btn-danger" id="deleteCollectionBtn" onclick="confirmDeleteCollection()" disabled>Delete Collection</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Document Modal -->
+    <div class="modal-overlay" id="deleteDocumentModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Delete Document</h3>
+                <button class="modal-close" onclick="closeModal('deleteDocumentModal'); clearDeleteDocumentInput();">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="padding: 8px 16px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; margin-bottom: 24px;">
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                        <div style="color: var(--danger); font-size: 24px; line-height: 1;">⚠️</div>
+                        <div>
+                            <div style="font-weight: 700; color: var(--danger); margin-bottom: 4px;">Warning: This action cannot be undone!</div>
+                            <div style="font-size: 14px; color: var(--text-secondary);">
+                                You are about to permanently delete document: <strong id="deleteDocumentId"></strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Type <strong>DELETE</strong> to confirm *</label>
+                    <input type="text" class="form-input" id="deleteDocumentConfirmInput" placeholder="Type DELETE to confirm" autocomplete="off">
+                    <p class="form-hint">This action is permanent and cannot be reversed</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('deleteDocumentModal'); clearDeleteDocumentInput();">Cancel</button>
+                <button class="btn btn-danger" id="deleteDocumentBtn" onclick="confirmDeleteDocument()" disabled>Delete Document</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Delete Modal -->
+    <div class="modal-overlay" id="bulkDeleteModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Delete Multiple Documents</h3>
+                <button class="modal-close" onclick="closeModal('bulkDeleteModal'); clearBulkDeleteInput();">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="padding: 8px 16px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; margin-bottom: 24px;">
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                        <div style="color: var(--danger); font-size: 24px; line-height: 1;">⚠️</div>
+                        <div>
+                            <div style="font-weight: 700; color: var(--danger); margin-bottom: 4px;">Warning: This action cannot be undone!</div>
+                            <div style="font-size: 14px; color: var(--text-secondary);">
+                                You are about to permanently delete <strong id="bulkDeleteCount">0</strong> documents.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Type <strong>DELETE</strong> to confirm *</label>
+                    <input type="text" class="form-input" id="bulkDeleteConfirmInput" placeholder="Type DELETE to confirm" autocomplete="off">
+                    <p class="form-hint">This action is permanent and cannot be reversed</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('bulkDeleteModal'); clearBulkDeleteInput();">Cancel</button>
+                <button class="btn btn-danger" id="bulkDeleteBtn" onclick="confirmBulkDelete()" disabled>Delete Documents</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOON Export Modal -->
+    <div class="modal-overlay" id="toonExportModal">
+        <div class="modal" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3>🚀 TOON Format Export</h3>
+                <button class="modal-close" onclick="closeModal('toonExportModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="padding: 12px 16px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 24px;">🎯</div>
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 4px;">Token-Optimized Format for LLMs</div>
+                            <div style="font-size: 13px; color: var(--text-secondary);">
+                                TOON reduces token usage by 40-50% compared to JSON. Perfect for GPT-4, Claude, and other LLM APIs.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Token Statistics -->
+                <div id="toonStats" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px;">
+                    <div style="padding: 16px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px;">
+                        <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 4px;">Documents</div>
+                        <div style="font-size: 24px; font-weight: 700; color: var(--primary);" id="toonDocCount">-</div>
+                    </div>
+                    <div style="padding: 16px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px;">
+                        <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 4px;">Token Reduction</div>
+                        <div style="font-size: 24px; font-weight: 700; color: #10b981;" id="toonReduction">-</div>
+                    </div>
+                    <div style="padding: 16px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px;">
+                        <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 4px;">Est. Savings (1M calls)</div>
+                        <div style="font-size: 24px; font-weight: 700; color: #10b981;" id="toonSavings">-</div>
+                    </div>
+                </div>
+
+                <!-- TOON Data Display -->
+                <div class="form-group">
+                    <label class="form-label">TOON Format Output</label>
+                    <textarea class="form-input" id="toonOutput" style="font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; min-height: 300px; resize: vertical;" readonly></textarea>
+                    <p class="form-hint">Copy this optimized format to send to LLM APIs</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('toonExportModal')">Close</button>
+                <button class="btn btn-success" onclick="downloadTOON()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Download .toon File
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

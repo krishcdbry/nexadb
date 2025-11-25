@@ -67,10 +67,15 @@ except ImportError:
     subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'msgpack'])
     import msgpack
 
+import hashlib
+import json
+import os
+
 # Import NexaDB core
 sys.path.append('.')
 from veloxdb_core import VeloxDB
 from toon_format import json_to_toon, toon_to_json
+from unified_auth import UnifiedAuthManager
 
 
 class NexaDBBinaryProtocol:
@@ -94,6 +99,10 @@ class NexaDBBinaryProtocol:
     MSG_QUERY_TOON = 0x0B  # Query with TOON format response
     MSG_EXPORT_TOON = 0x0C  # Export collection to TOON format
     MSG_IMPORT_TOON = 0x0D  # Import TOON data into collection
+    MSG_CREATE_USER = 0x0E  # Create new user (admin only)
+    MSG_DELETE_USER = 0x0F  # Delete user (admin only)
+    MSG_LIST_USERS = 0x10  # List all users (admin only)
+    MSG_CHANGE_PASSWORD = 0x11  # Change user password
 
     # Server → Client response types
     MSG_SUCCESS = 0x81
@@ -186,6 +195,10 @@ class NexaDBBinaryServer:
         print(f"[INIT] Initializing NexaDB at {data_dir}")
         self.db = VeloxDB(data_dir)
 
+        # Initialize unified authentication (username/password + API keys)
+        print(f"[SECURITY] Initializing unified authentication")
+        self.auth = UnifiedAuthManager(data_dir)
+
         # Connection pool
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
 
@@ -193,12 +206,17 @@ class NexaDBBinaryServer:
         self.socket = None
         self.running = False
 
+        # Authenticated sessions: address -> {username, role, authenticated_at}
+        self.sessions = {}
+        self.sessions_lock = threading.Lock()
+
         # Statistics
         self.stats = {
             'total_connections': 0,
             'active_connections': 0,
             'total_requests': 0,
             'total_errors': 0,
+            'auth_failures': 0,
             'start_time': time.time()
         }
         self.stats_lock = threading.Lock()
@@ -226,6 +244,10 @@ class NexaDBBinaryServer:
         print(f"\nServer listening on {self.host}:{self.port}")
         print("\nProtocol: Binary (MessagePack)")
         print("Performance: 3-10x faster than HTTP/REST")
+        print("\n🔒 SECURITY: Username/Password Authentication")
+        print("   - Clients must send CONNECT with username + password")
+        print("   - All operations require authentication")
+        print("   - Default user: root / nexadb123")
         print("\nSupported Operations:")
         print("  - CREATE, READ, UPDATE, DELETE")
         print("  - QUERY (with filters)")
@@ -327,6 +349,11 @@ class NexaDBBinaryServer:
         finally:
             client_socket.close()
 
+            # Remove session
+            with self.sessions_lock:
+                if address in self.sessions:
+                    del self.sessions[address]
+
             with self.stats_lock:
                 self.stats['active_connections'] -= 1
 
@@ -387,10 +414,17 @@ class NexaDBBinaryServer:
         """
         try:
             if msg_type == NexaDBBinaryProtocol.MSG_CONNECT:
-                # CONNECT - Handshake
-                self._handle_connect(sock, data)
+                # CONNECT - Handshake + Authentication
+                self._handle_connect(sock, data, address)
+                return  # Don't check auth for CONNECT itself
 
-            elif msg_type == NexaDBBinaryProtocol.MSG_CREATE:
+            # Check authentication for all other operations
+            with self.sessions_lock:
+                if address not in self.sessions:
+                    self._send_error(sock, "Not authenticated. Send CONNECT message with API key first.")
+                    return
+
+            if msg_type == NexaDBBinaryProtocol.MSG_CREATE:
                 # CREATE - Insert document
                 self._handle_create(sock, data)
 
@@ -439,6 +473,22 @@ class NexaDBBinaryServer:
                 # IMPORT_TOON - Import TOON data into collection
                 self._handle_import_toon(sock, data)
 
+            elif msg_type == NexaDBBinaryProtocol.MSG_CREATE_USER:
+                # CREATE_USER - Create new user (admin only)
+                self._handle_create_user(sock, data, address)
+
+            elif msg_type == NexaDBBinaryProtocol.MSG_DELETE_USER:
+                # DELETE_USER - Delete user (admin only)
+                self._handle_delete_user(sock, data, address)
+
+            elif msg_type == NexaDBBinaryProtocol.MSG_LIST_USERS:
+                # LIST_USERS - List all users (admin only)
+                self._handle_list_users(sock, address)
+
+            elif msg_type == NexaDBBinaryProtocol.MSG_CHANGE_PASSWORD:
+                # CHANGE_PASSWORD - Change user password
+                self._handle_change_password(sock, data, address)
+
             else:
                 self._send_error(sock, f"Unknown message type: {msg_type}")
 
@@ -449,14 +499,50 @@ class NexaDBBinaryServer:
             with self.stats_lock:
                 self.stats['total_errors'] += 1
 
-    def _handle_connect(self, sock: socket.socket, data: Dict[str, Any]):
-        """Handle CONNECT message."""
-        # For now, no authentication
-        # In future: support API keys, username/password, etc.
+    def _handle_connect(self, sock: socket.socket, data: Dict[str, Any], address: tuple):
+        """
+        Handle CONNECT message with username/password authentication.
+
+        Args:
+            sock: Client socket
+            data: Connection data with 'username' and 'password' fields
+            address: Client address
+        """
+        username = data.get('username')
+        password = data.get('password')
+
+        if not username or not password:
+            self._send_error(sock, "Missing 'username' or 'password' field in CONNECT message")
+            with self.stats_lock:
+                self.stats['auth_failures'] += 1
+            return
+
+        # Authenticate user
+        user_info = self.auth.authenticate_password(username, password)
+
+        if not user_info:
+            self._send_error(sock, "Invalid username or password")
+            with self.stats_lock:
+                self.stats['auth_failures'] += 1
+            return
+
+        # Store session
+        with self.sessions_lock:
+            self.sessions[address] = {
+                'username': user_info['username'],
+                'role': user_info['role'],
+                'authenticated_at': time.time()
+            }
+
+        print(f"[AUTH] User '{user_info['username']}' (role: {user_info['role']}) authenticated from {address[0]}:{address[1]}")
+
         self._send_success(sock, {
             'status': 'connected',
             'server': 'NexaDB Binary Protocol',
-            'version': '1.0.0'
+            'version': '1.0.0',
+            'authenticated': True,
+            'username': user_info['username'],
+            'role': user_info['role']
         })
 
     def _handle_create(self, sock: socket.socket, data: Dict[str, Any]):
@@ -774,6 +860,117 @@ class NexaDBBinaryServer:
 
         except Exception as e:
             self._send_error(sock, f"Failed to import TOON data: {str(e)}")
+
+    def _handle_create_user(self, sock: socket.socket, data: Dict[str, Any], address: tuple):
+        """Handle CREATE_USER message (admin only)."""
+        # Check if current user is admin
+        with self.sessions_lock:
+            session = self.sessions.get(address)
+            if not session or session['role'] != 'admin':
+                self._send_error(sock, "Permission denied. Only admins can create users.")
+                return
+
+        username = data.get('username')
+        password = data.get('password')
+        role = data.get('role', 'read')
+
+        if not username or not password:
+            self._send_error(sock, "Missing 'username' or 'password' field")
+            return
+
+        # Validate role
+        valid_roles = ['admin', 'write', 'read', 'guest']
+        if role not in valid_roles:
+            self._send_error(sock, f"Invalid role. Must be one of: {', '.join(valid_roles)}")
+            return
+
+        # Create user (returns API key)
+        try:
+            api_key = self.auth.create_user(username, password, role)
+
+            print(f"[USER] Admin '{session['username']}' created user '{username}' with role '{role}'")
+
+            self._send_success(sock, {
+                'message': f"User '{username}' created successfully",
+                'username': username,
+                'password': password,  # Return so admin can give it to the user
+                'api_key': api_key,    # Return so admin can give it to the user
+                'role': role,
+                'note': '⚠️ Save these credentials! Password and API key are only shown once.'
+            })
+        except ValueError as e:
+            self._send_error(sock, str(e))
+
+    def _handle_delete_user(self, sock: socket.socket, data: Dict[str, Any], address: tuple):
+        """Handle DELETE_USER message (admin only)."""
+        # Check if current user is admin
+        with self.sessions_lock:
+            session = self.sessions.get(address)
+            if not session or session['role'] != 'admin':
+                self._send_error(sock, "Permission denied. Only admins can delete users.")
+                return
+
+        username = data.get('username')
+
+        if not username:
+            self._send_error(sock, "Missing 'username' field")
+            return
+
+        # Delete user
+        success = self.auth.delete_user(username)
+
+        if success:
+            print(f"[USER] Admin '{session['username']}' deleted user '{username}'")
+            self._send_success(sock, {
+                'message': f"User '{username}' deleted successfully"
+            })
+        else:
+            self._send_error(sock, f"Failed to delete user '{username}' (may be root or doesn't exist)")
+
+    def _handle_list_users(self, sock: socket.socket, address: tuple):
+        """Handle LIST_USERS message (admin only)."""
+        # Check if current user is admin
+        with self.sessions_lock:
+            session = self.sessions.get(address)
+            if not session or session['role'] != 'admin':
+                self._send_error(sock, "Permission denied. Only admins can list users.")
+                return
+
+        # List users
+        users = self.auth.list_users()
+
+        self._send_success(sock, {
+            'users': users,
+            'count': len(users)
+        })
+
+    def _handle_change_password(self, sock: socket.socket, data: Dict[str, Any], address: tuple):
+        """Handle CHANGE_PASSWORD message."""
+        with self.sessions_lock:
+            session = self.sessions.get(address)
+
+        username = data.get('username')
+        new_password = data.get('new_password')
+
+        if not username or not new_password:
+            self._send_error(sock, "Missing 'username' or 'new_password' field")
+            return
+
+        # Users can change their own password, admins can change any password
+        if session['username'] != username and session['role'] != 'admin':
+            self._send_error(sock, "Permission denied. You can only change your own password.")
+            return
+
+        # Change password
+        success = self.auth.change_password(username, new_password)
+
+        if success:
+            print(f"[USER] Password changed for user '{username}' by '{session['username']}'")
+            self._send_success(sock, {
+                'message': f"Password changed successfully for user '{username}'"
+            })
+        else:
+            self._send_error(sock, f"Failed to change password for user '{username}'")
 
     def get_stats(self) -> Dict[str, Any]:
         """Get server statistics."""

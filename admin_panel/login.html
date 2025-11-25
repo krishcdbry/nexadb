@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - NexaDB Admin Panel</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+        }
+
+        .login-container {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 48px;
+            max-width: 450px;
+            width: 100%;
+            box-shadow: var(--shadow-xl);
+            border: 1px solid var(--border-color);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .login-header h1 {
+            font-size: 36px;
+            font-weight: 900;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            letter-spacing: -1px;
+        }
+
+        .login-header p {
+            color: var(--text-tertiary);
+            font-size: 15px;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .alert-info {
+            background: rgba(99, 102, 241, 0.15);
+            color: #6366f1;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-full {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .loading-btn {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>NexaDB</h1>
+            <p>Production-Grade AI Database</p>
+        </div>
+
+        <div id="loginAlert"></div>
+
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label class="form-label">Username</label>
+                <input type="text" id="username" class="form-input" placeholder="Enter username" required autofocus>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" id="password" class="form-input" placeholder="Enter password" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full" id="loginBtn">
+                <span id="loginBtnText">Login</span>
+            </button>
+        </form>
+
+        <div class="alert alert-info" style="margin-top: 24px;">
+            <strong>Default Credentials:</strong><br>
+            Username: <code style="color: var(--primary);">root</code><br>
+            Password: <code style="color: var(--primary);">nexadb123</code>
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script>
+        // Clear any stale sessions to prevent redirect loops
+        // The server is the source of truth for authentication
+        auth.clearSession();
+
+        async function handleLogin(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+            const loginBtnText = document.getElementById('loginBtnText');
+            const loginAlert = document.getElementById('loginAlert');
+
+            // Clear previous alerts
+            loginAlert.innerHTML = '';
+
+            // Disable button and show loading
+            loginBtn.disabled = true;
+            loginBtn.classList.add('loading-btn');
+            loginBtnText.textContent = 'Logging in...';
+
+            try {
+                await auth.login(username, password);
+
+                // Show success and redirect
+                loginAlert.innerHTML = `
+                    <div class="alert alert-info">
+                        Login successful! Redirecting...
+                    </div>
+                `;
+
+                setTimeout(() => {
+                    window.location.href = '/admin_panel/index.html';
+                }, 500);
+
+            } catch (error) {
+                // Show error
+                loginAlert.innerHTML = `
+                    <div class="alert alert-error">
+                        <strong>Login Failed:</strong> ${error.message}
+                    </div>
+                `;
+
+                // Re-enable button
+                loginBtn.disabled = false;
+                loginBtn.classList.remove('loading-btn');
+                loginBtnText.textContent = 'Login';
+            }
+        }
+
+        // Handle Enter key
+        document.getElementById('loginForm').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                handleLogin(e);
+            }
+        });
+    </script>
+</body>
+</html>
