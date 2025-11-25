@@ -212,7 +212,14 @@ class Collection:
         if not doc_data:
             return False
 
+        # Delete the document
         self.engine.delete(self._doc_key(doc_id))
+
+        # Also delete associated vector if it exists (for documents with vector embeddings)
+        # This handles cleanup for documents inserted via auto-indexing
+        vector_key = f"vector:{self.name}:{doc_id}"
+        self.engine.delete(vector_key)  # Safe to call even if vector doesn't exist
+
         return True
 
     def delete_many(self, query: Dict[str, Any]) -> int:
@@ -509,6 +516,13 @@ class VeloxDB:
             all_docs = self.engine.range_scan(prefix, prefix + '\xff')
 
             for key, _ in all_docs:
+                self.engine.delete(key)
+
+            # Delete all vectors associated with this collection
+            vector_prefix = f"vector:{name}:"
+            all_vectors = self.engine.range_scan(vector_prefix, vector_prefix + '\xff')
+
+            for key, _ in all_vectors:
                 self.engine.delete(key)
 
             del self.collections[name]
