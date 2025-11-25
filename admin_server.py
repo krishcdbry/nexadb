@@ -194,6 +194,9 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
         # API endpoint for TOON export
         if parsed_path.path == '/api/toon/export':
             self.handle_toon_export(parsed_path)
+        # Collections endpoint
+        elif parsed_path.path == '/api/collections':
+            self.handle_get_collections()
         # Session management endpoints
         elif parsed_path.path == '/api/auth/logout':
             self.handle_logout()
@@ -301,6 +304,42 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
                 'message': 'Logged out successfully'
             }).encode())
 
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_get_collections(self):
+        """Handle GET /api/collections - fetch all collections from REST API."""
+        try:
+            import urllib.request
+            import urllib.error
+
+            # Fetch collections from REST API (port 6969)
+            url = 'http://localhost:6969/collections'
+            req = urllib.request.Request(url)
+
+            with urllib.request.urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode())
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps(data).encode())
+
+        except urllib.error.URLError as e:
+            self.send_response(503)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'error': 'REST API not available',
+                'details': str(e)
+            }).encode())
         except Exception as e:
             self.send_response(500)
             self.send_header('Content-Type', 'application/json')
