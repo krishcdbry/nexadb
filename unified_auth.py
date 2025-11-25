@@ -40,10 +40,15 @@ class UnifiedAuthManager:
         self.users_file = os.path.join(data_dir, 'users.json')
         self.users = {}  # username -> user data
         self.api_key_index = {}  # api_key -> username (for fast lookups)
-        self.load_users()
+        self.load_users(verbose=True)  # Print message on initial load
 
-    def load_users(self):
-        """Load users from disk or create default root user."""
+    def load_users(self, verbose: bool = False):
+        """
+        Load users from disk or create default root user.
+
+        Args:
+            verbose: If True, print loading messages (default: False for silent reloads)
+        """
         if os.path.exists(self.users_file):
             with open(self.users_file, 'r') as f:
                 self.users = json.load(f)
@@ -53,7 +58,8 @@ class UnifiedAuthManager:
                 if 'api_key' in user:
                     self.api_key_index[user['api_key']] = username
 
-            print(f"[AUTH] Loaded {len(self.users)} users")
+            if verbose:
+                print(f"[AUTH] Loaded {len(self.users)} users")
         else:
             # Create default root user
             root_api_key = self.create_user('root', 'nexadb123', 'admin')
@@ -130,6 +136,9 @@ class UnifiedAuthManager:
         Returns:
             User info if authenticated, None otherwise
         """
+        # Reload users from disk to get latest changes (e.g., password updates)
+        self.load_users()
+
         if username not in self.users:
             return None
 
@@ -159,6 +168,9 @@ class UnifiedAuthManager:
         Returns:
             User info if authenticated, None otherwise
         """
+        # Reload users from disk to get latest changes (e.g., role updates)
+        self.load_users()
+
         username = self.api_key_index.get(api_key)
 
         if not username or username not in self.users:
