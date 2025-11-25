@@ -760,8 +760,9 @@ class NexaDBServer:
         print(f"   {WHITE}└─{RESET} Data Dir:      {BLUE}{self.data_dir}{RESET}")
 
         print(f"\n{MAGENTA}{BOLD}🌐 ACCESS POINTS{RESET}")
-        print(f"   {WHITE}├─{RESET} {BOLD}Main API:{RESET}      {CYAN}http://localhost:{self.port}{RESET}")
-        print(f"   {WHITE}└─{RESET} {BOLD}Admin Panel:{RESET}   {GREEN}http://localhost:{self.port}/admin_panel/{RESET}")
+        print(f"   {WHITE}├─{RESET} {BOLD}Binary Protocol:{RESET} {CYAN}http://localhost:6970{RESET} {YELLOW}(10x faster!){RESET}")
+        print(f"   {WHITE}├─{RESET} {BOLD}JSON API:{RESET}       {CYAN}http://localhost:{self.port}{RESET} {YELLOW}(REST fallback){RESET}")
+        print(f"   {WHITE}└─{RESET} {BOLD}Admin UI:{RESET}       {GREEN}http://localhost:9999{RESET}")
 
         print(f"\n{YELLOW}{BOLD}🔐 DEFAULT CREDENTIALS{RESET}")
         print(f"   {WHITE}├─{RESET} Username:      {GREEN}root{RESET}")
@@ -803,26 +804,35 @@ def main():
     """Main entry point for nexadb-server command"""
     import sys
     import os
+    import subprocess
+    import signal
+    import time
 
     # Parse command-line arguments
     host = os.getenv('NEXADB_HOST', '0.0.0.0')
     port = int(os.getenv('NEXADB_PORT', 6969))
     data_dir = os.getenv('NEXADB_DATA_DIR', './nexadb_data')
+    start_all = True  # By default, start all three servers
 
     # Check for --help
     if '--help' in sys.argv or '-h' in sys.argv:
-        print("NexaDB Server - Zero-dependency LSM-Tree database")
+        print("NexaDB Server - Database for AI Developers")
         print("\nUsage:")
         print("  nexadb-server [options]")
         print("\nOptions:")
         print("  --host HOST        Host to bind to (default: 0.0.0.0)")
         print("  --port PORT        Port to listen on (default: 6969)")
         print("  --data-dir DIR     Data directory (default: ./nexadb_data)")
+        print("  --rest-only        Start only REST API server (no binary/admin)")
         print("\nEnvironment Variables:")
         print("  NEXADB_HOST        Host to bind to")
         print("  NEXADB_PORT        Port to listen on")
         print("  NEXADB_DATA_DIR    Data directory")
         print("  NEXADB_API_KEY     Custom API key")
+        print("\nBy default, starts all three servers:")
+        print("  - REST API (port 6969)")
+        print("  - Binary Protocol (port 6970)")
+        print("  - Admin UI (port 9999)")
         sys.exit(0)
 
     # Parse command-line arguments
@@ -833,10 +843,70 @@ def main():
             port = int(sys.argv[i + 1])
         elif arg == '--data-dir' and i + 1 < len(sys.argv):
             data_dir = sys.argv[i + 1]
+        elif arg == '--rest-only':
+            start_all = False
 
-    # Start server
-    server = NexaDBServer(host=host, port=port, data_dir=data_dir)
-    server.start()
+    # Get absolute path to server scripts
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    binary_server_path = os.path.join(script_dir, 'nexadb_binary_server.py')
+    admin_server_path = os.path.join(script_dir, 'admin_server.py')
+
+    # Subprocess references
+    binary_process = None
+    admin_process = None
+
+    def cleanup_processes(signum=None, frame=None):
+        """Cleanup all subprocess servers"""
+        print("\n[SHUTDOWN] Stopping all servers...")
+        if binary_process:
+            binary_process.terminate()
+            try:
+                binary_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                binary_process.kill()
+        if admin_process:
+            admin_process.terminate()
+            try:
+                admin_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                admin_process.kill()
+
+    # Register signal handler
+    signal.signal(signal.SIGINT, cleanup_processes)
+    signal.signal(signal.SIGTERM, cleanup_processes)
+
+    try:
+        if start_all:
+            # Launch binary protocol server in background
+            print("[INIT] Starting Binary Protocol Server (port 6970)...")
+            binary_process = subprocess.Popen(
+                [sys.executable, binary_server_path, '--data-dir', data_dir, '--port', '6970'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True
+            )
+            time.sleep(0.5)  # Give it a moment to start
+
+            # Launch admin UI server in background
+            print("[INIT] Starting Admin UI Server (port 9999)...")
+            admin_process = subprocess.Popen(
+                [sys.executable, admin_server_path, '--data-dir', data_dir, '--port', '9999'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True
+            )
+            time.sleep(0.5)  # Give it a moment to start
+
+        # Start REST API server in main process
+        server = NexaDBServer(host=host, port=port, data_dir=data_dir)
+        server.start()
+
+    except KeyboardInterrupt:
+        cleanup_processes()
+    except Exception as e:
+        print(f"[ERROR] Failed to start server: {e}")
+        cleanup_processes()
+        sys.exit(1)
 
 
 if __name__ == '__main__':
