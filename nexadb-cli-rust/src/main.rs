@@ -19,8 +19,7 @@ const MSG_UPDATE: u8 = 0x04;
 const MSG_DELETE: u8 = 0x05;
 const MSG_QUERY: u8 = 0x06;
 const MSG_VECTOR_SEARCH: u8 = 0x07;
-const MSG_LIST_COLLECTIONS: u8 = 0x08;
-const MSG_COUNT: u8 = 0x09;
+const MSG_LIST_COLLECTIONS: u8 = 0x20;
 
 // Response types
 const MSG_SUCCESS: u8 = 0x81;
@@ -390,12 +389,14 @@ fn handle_command(client: &mut NexaClient, line: &str) -> Result<bool> {
                 serde_json::from_str(json_str)?
             };
 
+            // Use QUERY message with limit=0 to get count without fetching all documents
             let msg = serde_json::json!({
                 "collection": client.current_collection,
-                "filters": filters
+                "filters": filters,
+                "limit": 0
             });
 
-            match client.send_message(MSG_COUNT, &msg) {
+            match client.send_message(MSG_QUERY, &msg) {
                 Ok(result) => {
                     if let Some(count) = result.get("count").and_then(|c| c.as_u64()) {
                         println!("{}", format!("✓ Document count: {}", count).green());
