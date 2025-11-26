@@ -214,6 +214,9 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
         # Login endpoint
         if parsed_path.path == '/api/auth/login':
             self.handle_login()
+        # Vector search endpoint
+        elif parsed_path.path == '/api/search':
+            self.handle_vector_search()
         else:
             self.send_error(404, "Endpoint not found")
 
@@ -357,6 +360,72 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
 
                 self.wfile.write(json.dumps(result).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_vector_search(self):
+        """Handle POST /api/search - perform vector search."""
+        try:
+            from nexadb_client import NexaClient
+
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body)
+
+            collection = data.get('collection')
+            query_vector = data.get('query_vector')
+            k = data.get('k', 10)
+            dimensions = data.get('dimensions', 768)  # Default to 768
+
+            if not collection:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'error': 'Missing collection parameter'
+                }).encode())
+                return
+
+            if not query_vector:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'error': 'Missing query_vector parameter'
+                }).encode())
+                return
+
+            # Validate vector dimensions
+            if len(query_vector) != dimensions:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'error': f'Query vector must have {dimensions} dimensions, got {len(query_vector)}'
+                }).encode())
+                return
+
+            # Connect to binary server (THE SINGLE SOURCE OF TRUTH)
+            with NexaClient(host='localhost', port=6970) as db:
+                results = db.vector_search(collection, query_vector, limit=k, dimensions=dimensions)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'success': True,
+                    'results': results,
+                    'count': len(results)
+                }).encode())
 
         except Exception as e:
             self.send_response(500)

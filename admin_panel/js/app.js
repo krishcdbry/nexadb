@@ -92,6 +92,7 @@
                 'dashboard': 'dashboardView',
                 'collections': 'collectionsView',
                 'query': 'queryView',
+                'search': 'searchView',
                 'monitoring': 'monitoringView',
                 'users': 'usersView'
             };
@@ -103,6 +104,7 @@
                 'dashboard': 'Dashboard',
                 'collections': 'Collections',
                 'query': 'Query Editor',
+                'search': 'Vector Search',
                 'monitoring': 'Monitoring',
                 'users': 'User Management'
             };
@@ -111,6 +113,7 @@
                 'dashboard': 'Overview of your database',
                 'collections': 'Browse and manage your data',
                 'query': 'Execute queries and view results',
+                'search': 'Search with vector embeddings',
                 'monitoring': 'Real-time performance metrics',
                 'users': 'Manage users and permissions (Admin Only)'
             };
@@ -133,6 +136,8 @@
                 loadDashboard();
             } else if (viewName === 'query') {
                 loadQueryEditor();
+            } else if (viewName === 'search') {
+                loadVectorSearch();
             } else if (viewName === 'monitoring') {
                 loadMonitoring();
             } else if (viewName === 'users') {
@@ -228,8 +233,10 @@
         // Dashboard Functions
         async function loadDashboard() {
             try {
-                const result = await apiCall('GET', '/collections');
-                state.collections = result.collections;
+                // Use admin server API endpoint (not REST API server)
+                const response = await fetch('/api/collections');
+                const result = await response.json();
+                state.collections = result.collections || [];
 
                 // Update metrics
                 document.getElementById('totalCollections').textContent = state.collections.length;
@@ -493,8 +500,10 @@
         // Collections Functions
         async function loadCollections() {
             try {
-                const result = await apiCall('GET', '/collections');
-                state.collections = result.collections;
+                // Use admin server API endpoint (not REST API server)
+                const response = await fetch('/api/collections');
+                const result = await response.json();
+                state.collections = result.collections || [];
                 renderCollections();
 
                 // Update query editor collection dropdown
@@ -1199,7 +1208,51 @@
                 showToast('error', 'Error', 'Select a collection first');
                 return;
             }
+            // Reset to regular template
+            document.getElementById('documentType').value = 'regular';
+            updateDocumentTemplate();
             showModal('insertDocumentModal');
+        }
+
+        function updateDocumentTemplate() {
+            const type = document.getElementById('documentType').value;
+            const textarea = document.getElementById('insertDocumentData');
+
+            const templates = {
+                regular: `{
+  "name": "Alice",
+  "age": 28,
+  "email": "alice@example.com",
+  "city": "New York"
+}`,
+                vector_4d: `{
+  "title": "Example Movie",
+  "year": 2024,
+  "genre": "Sci-Fi",
+  "plot": "Description of the movie",
+  "vector": [0.5, 0.3, 0.8, 0.2]
+}`,
+                vector_768d: `{
+  "text": "Your text content here",
+  "category": "AI",
+  "metadata": {
+    "source": "document.pdf",
+    "page": 1
+  },
+  "vector": [0.023, -0.012, 0.045, 0.087, -0.034, 0.019, -0.056, 0.078, 0.001, -0.023]
+}`,
+                custom: ''
+            };
+
+            if (templates[type] !== undefined) {
+                textarea.value = templates[type];
+            }
+
+            if (type === 'vector_768d') {
+                textarea.placeholder = 'Note: This shows only 10 dimensions. You need 768 dimensions for full vector search. Use create_vector_collection.py script for realistic embeddings.';
+            } else {
+                textarea.placeholder = 'Enter valid JSON data';
+            }
         }
 
         async function insertDocument() {
@@ -2262,6 +2315,213 @@
 
             setTimeout(connect, 500);
         });
+
+        // Vector Search Functions
+        function loadVectorSearch() {
+            // Update collection dropdown
+            const select = document.getElementById('searchCollection');
+            select.innerHTML = '<option value="">Select collection...</option>' +
+                state.collections.map(name => `<option value="${name}">${name}</option>`).join('');
+
+            // Load search history
+            renderSearchHistory();
+        }
+
+        function renderSearchHistory() {
+            const container = document.getElementById('searchHistoryList');
+
+            if (!state.searchHistory || state.searchHistory.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+                        <p>No searches yet</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = state.searchHistory.map((search, index) => `
+                <div class="history-item" onclick="loadHistorySearch(${index})" title="Search in ${search.collection}">
+                    <div style="font-weight: 600; margin-bottom: 4px;">${search.collection}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">k=${search.k} • ${search.timestamp}</div>
+                </div>
+            `).join('');
+        }
+
+        function loadHistorySearch(index) {
+            const search = state.searchHistory[index];
+            document.getElementById('searchCollection').value = search.collection;
+            document.getElementById('searchK').value = search.k;
+            document.getElementById('searchVectorInput').value = search.vector;
+            state.currentCollection = search.collection;
+        }
+
+        function updateSearchCollection() {
+            const collection = document.getElementById('searchCollection').value;
+            state.currentCollection = collection;
+        }
+
+        async function executeVectorSearch() {
+            const collection = document.getElementById('searchCollection').value;
+            const vectorStr = document.getElementById('searchVectorInput').value.trim();
+            const k = parseInt(document.getElementById('searchK').value) || 10;
+            const dimensions = parseInt(document.getElementById('searchDimensions').value) || 768;
+
+            if (!collection) {
+                showToast('error', 'Error', 'Please select a collection');
+                return;
+            }
+
+            if (!vectorStr) {
+                showToast('error', 'Error', 'Please enter a query vector');
+                return;
+            }
+
+            try {
+                const queryVector = JSON.parse(vectorStr);
+
+                if (!Array.isArray(queryVector)) {
+                    throw new Error('Query vector must be an array of numbers');
+                }
+
+                // Call admin server API endpoint for vector search
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        collection,
+                        query_vector: queryVector,
+                        k,
+                        dimensions
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Search failed');
+                }
+
+                // Initialize search history if it doesn't exist
+                if (!state.searchHistory) {
+                    state.searchHistory = [];
+                }
+
+                // Add to history
+                state.searchHistory.unshift({
+                    collection,
+                    vector: vectorStr,
+                    k,
+                    dimensions,
+                    timestamp: new Date().toLocaleTimeString()
+                });
+
+                if (state.searchHistory.length > 10) {
+                    state.searchHistory = state.searchHistory.slice(0, 10);
+                }
+
+                renderSearchHistory();
+
+                // Display results
+                displaySearchResults(result.results, result.count);
+
+                showToast('success', 'Success', `Found ${result.count} results`);
+            } catch (error) {
+                showToast('error', 'Error', error.message);
+
+                const resultsContainer = document.getElementById('searchResults');
+                const resultsContent = document.getElementById('searchResultsContent');
+
+                resultsContainer.style.display = 'block';
+                resultsContent.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        function displaySearchResults(results, count) {
+            const resultsContainer = document.getElementById('searchResults');
+            const resultsContent = document.getElementById('searchResultsContent');
+            const resultsCountEl = document.getElementById('searchResultsCount');
+
+            resultsContainer.style.display = 'block';
+            resultsCountEl.textContent = `${count} result${count !== 1 ? 's' : ''} found`;
+
+            if (!results || results.length === 0) {
+                resultsContent.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <h3>No results found</h3>
+                        <p>Try adjusting your query vector or increasing k</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Display results with similarity scores
+            let html = '<div style="padding: 20px;">';
+
+            results.forEach((result, index) => {
+                const similarity = (result.similarity * 100).toFixed(2);
+                const doc = result.document;
+
+                html += `
+                    <div style="margin-bottom: 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
+                        <div style="padding: 12px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="font-size: 14px; font-weight: 700; color: var(--text-secondary);">Result #${index + 1}</span>
+                                ${doc._id ? `<span style="font-size: 12px; color: var(--text-tertiary); margin-left: 12px;">ID: ${doc._id}</span>` : ''}
+                            </div>
+                            <div style="background: rgba(139, 92, 246, 0.15); color: var(--primary); padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 700;">
+                                ${similarity}% match
+                            </div>
+                        </div>
+                        <div style="padding: 20px; font-family: 'SF Mono', 'Monaco', 'Courier New', monospace; font-size: 13px; line-height: 1.8; color: var(--text-secondary); overflow-x: auto;">
+                            <pre style="margin: 0;">${syntaxHighlightJSON(doc)}</pre>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            resultsContent.innerHTML = html;
+
+            // Store results for copy functionality
+            state.currentSearchResults = results;
+        }
+
+        function clearSearchEditor() {
+            document.getElementById('searchVectorInput').value = '[]';
+            document.getElementById('searchResults').style.display = 'none';
+            document.getElementById('searchK').value = '10';
+        }
+
+        async function copySearchResults() {
+            if (!state.currentSearchResults || state.currentSearchResults.length === 0) {
+                showToast('error', 'Error', 'No results to copy');
+                return;
+            }
+
+            try {
+                const text = JSON.stringify(state.currentSearchResults, null, 2);
+                await navigator.clipboard.writeText(text);
+                showToast('success', 'Copied!', 'Search results copied to clipboard');
+            } catch (error) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = JSON.stringify(state.currentSearchResults, null, 2);
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showToast('success', 'Copied!', 'Search results copied to clipboard');
+                } catch (err) {
+                    showToast('error', 'Error', 'Failed to copy results');
+                }
+                document.body.removeChild(textArea);
+            }
+        }
 
         // Close modal on overlay click
         document.querySelectorAll('.modal-overlay').forEach(overlay => {

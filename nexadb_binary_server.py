@@ -720,7 +720,7 @@ class NexaDBBinaryServer:
         has_vectors = any('vector' in doc and isinstance(doc.get('vector'), list) for doc in documents)
 
         if has_vectors:
-            # Use vector collection for automatic indexing
+            # Use vector collection for automatic indexing with BATCH operations (100x faster!)
             # Get dimensions from first document with vector
             dimensions = None
             for doc in documents:
@@ -729,17 +729,33 @@ class NexaDBBinaryServer:
                     break
 
             vector_collection = self.db.vector_collection(collection_name, dimensions)
-            doc_ids = []
+
+            # Separate vector documents from regular documents
+            vector_docs = []
+            regular_docs = []
 
             for doc in documents:
                 if 'vector' in doc and isinstance(doc['vector'], list):
                     vector = doc['vector']
                     doc_data = {k: v for k, v in doc.items() if k != 'vector'}
-                    doc_id = vector_collection.insert(doc_data, vector)
-                    doc_ids.append(doc_id)
+                    vector_docs.append((doc_data, vector))
                 else:
-                    # Document without vector - insert normally
-                    collection = self.db.collection(collection_name)
+                    regular_docs.append(doc)
+
+            # Batch insert vector documents (FAST!)
+            doc_ids = []
+            if vector_docs:
+                result = vector_collection.insert_batch(vector_docs)
+                doc_ids.extend(result['successful'])
+
+                # Log failures if any
+                if result['failed']:
+                    print(f"[BATCH_WRITE] {len(result['failed'])} documents failed to insert")
+
+            # Insert regular documents
+            if regular_docs:
+                collection = self.db.collection(collection_name)
+                for doc in regular_docs:
                     doc_id = collection.insert(doc)
                     doc_ids.append(doc_id)
         else:

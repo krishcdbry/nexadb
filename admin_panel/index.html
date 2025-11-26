@@ -82,6 +82,15 @@
                     </div>
                     <span>Query Editor</span>
                 </div>
+                <div class="nav-item" onclick="switchView('search')">
+                    <div class="nav-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="m21 21-4.35-4.35"/>
+                        </svg>
+                    </div>
+                    <span>Vector Search</span>
+                </div>
                 <div class="nav-item" onclick="switchView('monitoring')">
                     <div class="nav-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -598,6 +607,77 @@ Or use aggregation pipeline:
                     </div>
                 </div>
 
+                <!-- Vector Search View -->
+                <div id="searchView" class="view-container">
+                    <div class="query-editor-container">
+                        <div class="query-history">
+                            <div class="history-header">Search History</div>
+                            <div id="searchHistoryList">
+                                <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+                                    <p>No searches yet</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="query-editor-main">
+                            <div class="editor-toolbar">
+                                <div class="editor-selects">
+                                    <select class="editor-select" id="searchCollection" onchange="updateSearchCollection()">
+                                        <option value="">Select collection...</option>
+                                    </select>
+                                    <input type="number" class="editor-select" id="searchDimensions" value="768" min="1" max="10000" placeholder="Vector dimensions" style="width: 140px;" title="Vector dimensions (e.g., 768, 4)">
+                                    <input type="number" class="editor-select" id="searchK" value="10" min="1" max="100" placeholder="Top K results" style="width: 120px;">
+                                </div>
+                                <div style="display: flex; gap: 12px;">
+                                    <button class="btn btn-sm btn-primary" onclick="executeVectorSearch()">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="11" cy="11" r="8"/>
+                                            <path d="m21 21-4.35-4.35"/>
+                                        </svg>
+                                        <span>Search</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-secondary" onclick="clearSearchEditor()">Clear</button>
+                                </div>
+                            </div>
+
+                            <div class="code-editor">
+                                <div class="editor-tabs">
+                                    <button class="editor-tab active">Query Vector</button>
+                                </div>
+                                <div class="editor-content">
+                                    <textarea class="code-textarea" id="searchVectorInput" placeholder='Enter your query vector as JSON array, for example:
+
+[0.1, 0.2, 0.3, ..., 0.768]
+
+Or paste a full vector embedding from your model.
+
+Example for 768-dimensional vector:
+[0.023, -0.012, 0.045, 0.087, -0.034, ...]
+
+Tip: Get vectors from OpenAI embeddings, Sentence Transformers, or other embedding models.'>[]</textarea>
+                                </div>
+                            </div>
+
+                            <div class="editor-results" id="searchResults" style="display: none;">
+                                <div class="results-header" style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span>Search Results</span>
+                                    <div style="display: flex; gap: 12px; align-items: center;">
+                                        <span id="searchResultsCount" style="font-size: 13px; color: var(--text-tertiary);"></span>
+                                        <button class="btn-secondary" onclick="copySearchResults()" style="padding: 8px 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                            </svg>
+                                            Copy
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="results-content results-editor" id="searchResultsContent"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Users View (Admin Only) -->
                 <div id="usersView" class="view-container">
                     <div class="table-browser">
@@ -623,7 +703,7 @@ Or use aggregation pipeline:
                         <div class="table-container" id="usersTableContainer">
                             <div class="empty-state">
                                 <div class="empty-state-icon">
-                                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+                                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-width="1.5" opacity="0.3">
                                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
                                         <circle cx="9" cy="7" r="4"/>
                                         <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
@@ -828,9 +908,19 @@ Or use aggregation pipeline:
             </div>
             <div class="modal-body">
                 <div class="form-group">
+                    <label class="form-label">Document Type</label>
+                    <select class="form-input" id="documentType" onchange="updateDocumentTemplate()">
+                        <option value="regular">Regular Document</option>
+                        <option value="vector_4d">Vector Document (4D)</option>
+                        <option value="vector_768d">Vector Document (768D)</option>
+                        <option value="custom">Custom JSON</option>
+                    </select>
+                    <p class="form-hint">Select template or use custom JSON</p>
+                </div>
+                <div class="form-group">
                     <label class="form-label">JSON Document *</label>
-                    <textarea class="form-input" id="insertDocumentData" placeholder='{\n  "name": "Alice",\n  "age": 28,\n  "email": "alice@example.com"\n}'></textarea>
-                    <p class="form-hint">Enter valid JSON data</p>
+                    <textarea class="form-input" id="insertDocumentData" rows="12" placeholder='{\n  "name": "Alice",\n  "age": 28,\n  "email": "alice@example.com"\n}'></textarea>
+                    <p class="form-hint">Enter valid JSON data. Include a "vector" field for vector search.</p>
                 </div>
             </div>
             <div class="modal-footer">
