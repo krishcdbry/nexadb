@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::io::{Read, Write};
 use std::net::TcpStream;
-use tokio::runtime::Runtime;
 
 const MAGIC: u32 = 0x4E455841; // "NEXA"
 const VERSION: u8 = 0x01;
@@ -276,18 +275,18 @@ fn handle_command(client: &mut NexaClient, line: &str) -> Result<bool> {
 
             match client.send_message(MSG_QUERY, &msg) {
                 Ok(result) => {
-                    let docs = result.get("documents")
-                        .and_then(|d| d.as_array())
-                        .unwrap_or(&vec![]);
-
-                    if docs.is_empty() {
-                        println!("{}", "⚠ No documents found".yellow());
-                    } else {
-                        println!("{}", format!("✓ Found {} document(s):", docs.len()).green());
-                        for (i, doc) in docs.iter().enumerate() {
-                            println!("\n{}", format!("[{}]", i + 1).bold());
-                            println!("{}", serde_json::to_string_pretty(doc)?.cyan());
+                    if let Some(docs) = result.get("documents").and_then(|d| d.as_array()) {
+                        if docs.is_empty() {
+                            println!("{}", "⚠ No documents found".yellow());
+                        } else {
+                            println!("{}", format!("✓ Found {} document(s):", docs.len()).green());
+                            for (i, doc) in docs.iter().enumerate() {
+                                println!("\n{}", format!("[{}]", i + 1).bold());
+                                println!("{}", serde_json::to_string_pretty(doc)?.cyan());
+                            }
                         }
+                    } else {
+                        println!("{}", "⚠ No documents found".yellow());
                     }
                 }
                 Err(e) => println!("{}", format!("✗ Error: {}", e).red()),
@@ -324,23 +323,23 @@ fn handle_command(client: &mut NexaClient, line: &str) -> Result<bool> {
 
             match client.send_message(MSG_VECTOR_SEARCH, &msg) {
                 Ok(result) => {
-                    let results = result.get("results")
-                        .and_then(|r| r.as_array())
-                        .unwrap_or(&vec![]);
-
-                    if results.is_empty() {
-                        println!("{}", "⚠ No similar documents found".yellow());
-                    } else {
-                        println!("{}", format!("✓ Found {} similar document(s):", results.len()).green());
-                        for (i, res) in results.iter().enumerate() {
-                            let similarity = res.get("similarity")
-                                .and_then(|s| s.as_f64())
-                                .unwrap_or(0.0) * 100.0;
-                            println!("\n{}", format!("[{}] {:.2}% match", i + 1, similarity).bold());
-                            if let Some(doc) = res.get("document") {
-                                println!("{}", serde_json::to_string_pretty(doc)?.cyan());
+                    if let Some(results) = result.get("results").and_then(|r| r.as_array()) {
+                        if results.is_empty() {
+                            println!("{}", "⚠ No similar documents found".yellow());
+                        } else {
+                            println!("{}", format!("✓ Found {} similar document(s):", results.len()).green());
+                            for (i, res) in results.iter().enumerate() {
+                                let similarity = res.get("similarity")
+                                    .and_then(|s| s.as_f64())
+                                    .unwrap_or(0.0) * 100.0;
+                                println!("\n{}", format!("[{}] {:.2}% match", i + 1, similarity).bold());
+                                if let Some(doc) = res.get("document") {
+                                    println!("{}", serde_json::to_string_pretty(doc)?.cyan());
+                                }
                             }
                         }
+                    } else {
+                        println!("{}", "⚠ No similar documents found".yellow());
                     }
                 }
                 Err(e) => println!("{}", format!("✗ Error: {}", e).red()),
