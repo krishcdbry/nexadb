@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::io::{Read, Write};
 use std::net::TcpStream;
-
 const MAGIC: u32 = 0x4E455841; // "NEXA"
 const VERSION: u8 = 0x01;
 
