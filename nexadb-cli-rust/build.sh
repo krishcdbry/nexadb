@@ -1,11 +1,11 @@
 #!/bin/bash
 #
-# Build script for NexaDB Rust CLI
+# Build script for Nexa CLI (NexaDB Interactive Terminal)
 # Builds binaries for all platforms
 
 set -e
 
-echo "Building NexaDB CLI for all platforms..."
+echo "Building Nexa CLI for all platforms..."
 
 # Install cross if not installed
 if ! command -v cross &> /dev/null; then
@@ -37,14 +37,14 @@ for target in "${TARGETS[@]}"; do
 
     # Copy to dist folder
     if [[ "$target" == *"windows"* ]]; then
-        cp "target/$target/release/nexadb.exe" "dist/nexadb-$target.exe"
+        cp "target/$target/release/nexa.exe" "dist/nexa-$target.exe"
     else
-        cp "target/$target/release/nexadb" "dist/nexadb-$target"
+        cp "target/$target/release/nexa" "dist/nexa-$target"
         # Strip binary to reduce size
-        strip "dist/nexadb-$target" 2>/dev/null || true
+        strip "dist/nexa-$target" 2>/dev/null || true
     fi
 
-    echo "✓ Built: dist/nexadb-$target"
+    echo "✓ Built: dist/nexa-$target"
 done
 
 echo ""

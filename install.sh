@@ -165,6 +165,31 @@ EOF
 
 chmod +x "$BIN_DIR/nexadb"
 
+# Download nexa CLI binary
+echo -e "${CYAN}Downloading nexa CLI (interactive terminal)...${RESET}"
+
+# Detect architecture
+ARCH=$(uname -m)
+if [ "$ARCH" = "x86_64" ]; then
+    NEXA_BINARY="nexa-x86_64-unknown-linux-gnu"
+elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+    NEXA_BINARY="nexa-aarch64-unknown-linux-gnu"
+else
+    echo -e "${YELLOW}Unsupported architecture: $ARCH. Skipping nexa CLI installation.${RESET}"
+    NEXA_BINARY=""
+fi
+
+if [ -n "$NEXA_BINARY" ]; then
+    # Download latest nexa binary from GitHub releases
+    NEXA_URL="https://github.com/krishcdbry/nexadb/releases/latest/download/$NEXA_BINARY"
+    if curl -fsSL "$NEXA_URL" -o "$BIN_DIR/nexa" 2>/dev/null; then
+        chmod +x "$BIN_DIR/nexa"
+        echo -e "${GREEN}✓ nexa CLI installed${RESET}"
+    else
+        echo -e "${YELLOW}⚠ Could not download nexa CLI. It will be available after first release.${RESET}"
+    fi
+fi
+
 # Add to PATH if not already
 echo -e "\n${BOLD}[5/5] Configuring PATH...${RESET}"
 
@@ -217,6 +242,7 @@ echo -e ""
 echo -e "${CYAN}${BOLD}📚 USEFUL COMMANDS${RESET}"
 echo -e "   ${CYAN}nexadb start${RESET}          - Start all services"
 echo -e "   ${CYAN}nexadb admin${RESET}          - Admin UI only"
+echo -e "   ${CYAN}nexa -u root -p${RESET}       - Interactive CLI terminal"
 echo -e "   ${CYAN}nexadb reset-password${RESET} - Reset password"
 echo -e "   ${CYAN}nexadb --help${RESET}         - Show help"
 echo -e ""

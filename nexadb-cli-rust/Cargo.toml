@@ -19,7 +19,7 @@ anyhow = "1.0"
 dirs = "5.0"
 
 [[bin]]
-name = "nexadb"
+name = "nexa"
 path = "src/main.rs"
 
 [profile.release]

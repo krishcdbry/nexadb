@@ -16,28 +16,28 @@ jobs:
           # macOS
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: nexadb
-            asset_name: nexadb-x86_64-apple-darwin
+            artifact_name: nexa
+            asset_name: nexa-x86_64-apple-darwin
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: nexadb
-            asset_name: nexadb-aarch64-apple-darwin
+            artifact_name: nexa
+            asset_name: nexa-aarch64-apple-darwin
 
           # Linux
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: nexadb
-            asset_name: nexadb-x86_64-unknown-linux-gnu
+            artifact_name: nexa
+            asset_name: nexa-x86_64-unknown-linux-gnu
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            artifact_name: nexadb
-            asset_name: nexadb-aarch64-unknown-linux-gnu
+            artifact_name: nexa
+            asset_name: nexa-aarch64-unknown-linux-gnu
 
           # Windows
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: nexadb.exe
-            asset_name: nexadb-x86_64-pc-windows-msvc.exe
+            artifact_name: nexa.exe
+            asset_name: nexa-x86_64-pc-windows-msvc.exe
 
     steps:
       - uses: actions/checkout@v4

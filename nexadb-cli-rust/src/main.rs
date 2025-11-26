@@ -27,8 +27,8 @@ const MSG_ERROR: u8 = 0x82;
 const MSG_NOT_FOUND: u8 = 0x83;
 
 #[derive(Parser, Debug)]
-#[command(name = "nexadb")]
-#[command(about = "NexaDB Interactive CLI - Database for AI Developers", long_about = None)]
+#[command(name = "nexa")]
+#[command(about = "Nexa - Interactive CLI for NexaDB", long_about = None)]
 struct Args {
     /// NexaDB server host
     #[arg(long, default_value = "localhost")]
@@ -163,7 +163,7 @@ Type 'help' for commands or 'exit' to quit.
 fn print_help() {
     let help = r#"
 ╔═══════════════════════════════════════════════════════════════════╗
-║                        NexaDB CLI Commands                        ║
+║                        Nexa CLI Commands                          ║
 ╚═══════════════════════════════════════════════════════════════════╝
 
 Collection Management:
@@ -502,9 +502,9 @@ fn main() -> Result<()> {
 
     loop {
         let prompt = if let Some(ref col) = client.current_collection {
-            format!("nexadb({})> ", col).green().bold().to_string()
+            format!("nexa({})> ", col).green().bold().to_string()
         } else {
-            "nexadb> ".green().bold().to_string()
+            "nexa> ".green().bold().to_string()
         };
 
         match rl.readline(&prompt) {
