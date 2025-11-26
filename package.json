@@ -63,6 +63,7 @@
     "INSTALLATION.md",
     "DEPLOY_*.md"
   ],
-  "devDependencies": {},
-  "dependencies": {}
+  "dependencies": {
+    "nexaclient": "^1.1.0"
+  }
 }

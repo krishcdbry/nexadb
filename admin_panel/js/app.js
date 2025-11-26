@@ -1713,12 +1713,14 @@
             updateMonitoringMetrics();
             updateMonitoringChart();
             loadDatabaseStatus();
+            loadVectorIndexes();
 
             // Update every 5 seconds
             setInterval(() => {
                 if (state.currentView === 'monitoring') {
                     updateMonitoringMetrics();
                     updateMonitoringChart();
+                    loadVectorIndexes();
                 }
             }, 5000);
         }
@@ -1770,6 +1772,79 @@
                 `;
             } catch (error) {
                 container.innerHTML = `<div class="empty-state"><h3>Error</h3><p>${error.message}</p></div>`;
+            }
+        }
+
+        async function loadVectorIndexes() {
+            const container = document.getElementById('vectorIndexes');
+
+            try {
+                const response = await fetch('/api/vectors');
+                const data = await response.json();
+
+                if (data.total_vectors === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon" style="font-size: 48px;">📊</div>
+                            <h3>No Vector Indexes</h3>
+                            <p>Insert documents with vector fields to see vector indexes here</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = `
+                    <div style="padding: 16px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; margin-bottom: 20px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="font-size: 24px;">📊</div>
+                            <div>
+                                <div style="font-weight: 600; margin-bottom: 4px;">Total Vectors: ${data.total_vectors}</div>
+                                <div style="font-size: 13px; color: var(--text-secondary);">
+                                    ${Object.keys(data.collections).length} collections with vector embeddings
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display: grid; gap: 12px;">
+                `;
+
+                for (const [collectionName, collectionData] of Object.entries(data.collections)) {
+                    const docList = collectionData.documents.slice(0, 5).map(doc =>
+                        `<span style="font-size: 11px; color: var(--text-tertiary); font-family: monospace;">${doc.doc_id}</span>`
+                    ).join(', ');
+
+                    const remaining = collectionData.count - 5;
+
+                    html += `
+                        <div style="padding: 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <div>
+                                    <div style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">${collectionName}</div>
+                                    <div style="font-size: 13px; color: var(--text-tertiary);">
+                                        ${collectionData.count} vectors • ${collectionData.dimensions} dimensions
+                                    </div>
+                                </div>
+                                <div style="background: rgba(139, 92, 246, 0.15); color: var(--primary); padding: 6px 12px; border-radius: 6px; font-size: 18px; font-weight: 700;">
+                                    ${collectionData.count}
+                                </div>
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+                                Documents: ${docList}${remaining > 0 ? ` <span style="color: var(--text-tertiary);">+${remaining} more</span>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                html += `</div>`;
+                container.innerHTML = html;
+
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>Error Loading Vectors</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
             }
         }
 

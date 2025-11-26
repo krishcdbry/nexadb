@@ -8,7 +8,7 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Node.js 14+](https://img.shields.io/badge/node-14+-green.svg)](https://nodejs.org/)
 
-[Quick Start](#quick-start) • [Vector Search](#-built-in-vector-search) • [TOON Format](#toon-format) • [Admin Panel](#admin-panel) • [Architecture](#-architecture-v20)
+[Quick Start](#quick-start) • [Features](FEATURES.md) • [Performance](PERFORMANCE.md) • [Benchmarks](BENCHMARK_RESULTS.md) • [TOON Format](#toon-format) • [Admin Panel](#admin-panel)
 
 </div>
 
@@ -16,20 +16,22 @@
 
 ## 🚀 What is NexaDB?
 
-NexaDB is a **lightweight, high-performance NoSQL database** built for AI developers with:
+NexaDB is a **production-ready, high-performance NoSQL database** built for AI developers with:
 - 🎯 **Vector search** for semantic similarity (RAG, recommendations)
 - 📦 **TOON format** support (40-50% fewer LLM tokens)
 - ⚡ **Binary protocol** (10x faster than REST)
 - 🎨 **Beautiful admin panel** with TOON export
-- 🏗️ **Unified architecture** (single source of truth)
+- 🏗️ **Production-grade performance** (25K+ ops/sec @ 1M scale via binary protocol, 124K+ via direct API)
+- 🚀 **High-performance storage** (LSM-Tree with Bloom filters, dual MemTable, WAL batching)
 
 **Perfect for:**
 - 🤖 AI/ML applications and RAG systems
 - 🔍 Semantic search and recommendations
 - 📊 Real-time analytics and dashboards
 - 🔌 Microservices and APIs
-- 🎯 Rapid prototyping and MVPs
+- 🎯 Rapid prototyping and production MVPs
 - 💰 Reducing LLM API costs by 40-50%
+- 📈 Small-to-medium datasets (1K to 1M documents)
 
 ---
 
@@ -784,23 +786,37 @@ NexaDB uses a custom binary protocol built on MessagePack for maximum performanc
 
 ## 📈 Performance
 
-### Benchmarks (MacBook Pro M1, 16GB RAM)
+### Production-Scale Benchmarks (v2.1.0)
 
-**Binary Protocol Performance:**
-- Insert: **50,000 docs/sec**
-- Find: **80,000 queries/sec**
-- Update: **45,000 ops/sec**
-- Aggregation: **20,000 docs/sec**
+**Tested with 1.13M total operations - 100% success rate!**
 
-**TOON Format Performance:**
-- Serialization: **100,000 docs/sec**
-- Parsing: **80,000 docs/sec**
-- Token reduction: **36-50%**
+**Exceptional Throughput:**
+- **1M Document Test**: **25,543 ops/sec** (Binary Protocol) - Production Scale! 🚀
+- **100K Document Test**: **29,505 ops/sec** (Binary Protocol)
+- **Direct API Writes**: **124,475 ops/sec** (no network overhead)
+- **HTTP REST API**: **979 ops/sec** (JSON over HTTP)
+- **Binary vs HTTP**: **30x faster**
 
-**Admin Panel:**
-- Query execution: <100ms
-- TOON export: <200ms for 10K docs
-- Real-time updates: 60 FPS
+**Low Latency:**
+- Write latency (binary): **0.039ms** average @ 1M scale
+- Write latency (direct API): **0.008ms** average
+- Query latency (1M docs): **4-5 seconds** without indexes
+- Hot read latency: **< 1ms** (MemTable)
+
+**Key Features:**
+- ✅ **LSM-Tree Architecture**: SortedDict MemTable with O(log n) inserts
+- ✅ **Bloom Filters**: 95% reduction in unnecessary disk reads
+- ✅ **Dual MemTable**: Non-blocking writes during flush (< 1ms swap)
+- ✅ **WAL Batching**: 500 operations batched for efficiency
+- ✅ **LRU Cache**: 10,000 entries with 70-95% hit rates
+- ✅ **Vector Search**: HNSW algorithm for semantic similarity
+- ✅ **Secondary Indexes**: B-Tree indexes for fast queries
+
+**TOON Format:**
+- Token reduction: **40-50%** vs JSON
+- Perfect for RAG systems and LLM cost optimization
+
+📊 **[Performance Guide](PERFORMANCE.md)** • **[Detailed Benchmarks](BENCHMARK_RESULTS.md)** • **[All Features](FEATURES.md)**
 
 ---
 
@@ -927,7 +943,7 @@ python3 admin_server.py --port 9999 --data-dir ./nexadb_data
 
 - [x] LSM-Tree storage engine
 - [x] Binary protocol with MessagePack
-- [x] Connection pooling
+- [x] Connection pooling (100 concurrent connections)
 - [x] JSON document storage
 - [x] MongoDB-style queries
 - [x] Aggregation pipeline
@@ -946,12 +962,20 @@ python3 admin_server.py --port 9999 --data-dir ./nexadb_data
 - [x] **Rust CLI** (`nexa -u root -p`) - Zero-dependency, cross-platform 🦀
 - [x] **Cloud deployment** (Railway, Render, Fly.io) ☁️
 - [x] Production-grade NexaClient with reconnection
+- [x] **🚀 Production Optimizations (v2.0):**
+  - [x] Batch WAL writes (10x write throughput)
+  - [x] 256MB MemTable (configurable)
+  - [x] LRU cache for hot reads
+  - [x] Secondary B-Tree indexes
+  - [x] Multi-threaded compaction
+  - [x] Cost-based query optimizer
+  - [x] Comprehensive test suite
+  - [x] Production benchmarks
 
 ### 🚧 In Progress
 
-- [ ] Full-text search
-- [ ] Secondary indexes (B-Tree, Hash)
-- [ ] Replication support
+- [ ] Full-text search (inverted index)
+- [ ] Replication support (master-slave)
 
 ### 🔮 Future
 
