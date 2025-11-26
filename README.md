@@ -153,10 +153,20 @@ nexadb start
 # - Binary Protocol on port 6970 (10x faster!)
 # - JSON REST API on port 6969 (REST fallback)
 # - Admin Web UI on port 9999 (Web interface)
+# - Nexa CLI (interactive terminal) - ready to use!
 
 # Access admin panel
 open http://localhost:9999
+
+# Use interactive CLI
+nexa -u root -p
 ```
+
+**What gets installed:**
+- ✅ `nexadb` command - Start/stop server, manage services
+- ✅ `nexa` command - Interactive CLI terminal (Rust-based, zero dependencies)
+- ✅ Python server files and dependencies
+- ✅ Admin panel web interface
 
 ### Installation via Install Script (Linux/Ubuntu)
 
@@ -173,14 +183,27 @@ nexadb start
 # Access admin panel
 open http://localhost:9999
 
+# Use interactive CLI
+nexa -u root -p
+
 # Uninstall (if needed)
 curl -fsSL https://raw.githubusercontent.com/krishcdbry/nexadb/main/uninstall.sh | bash
 ```
+
+**What gets installed:**
+- ✅ `nexadb` command - Start/stop server, manage services
+- ✅ `nexa` command - Interactive CLI terminal (Rust-based, auto-detects architecture)
+- ✅ Python server files and dependencies
+- ✅ Admin panel web interface
 
 **Supported Linux Distributions:**
 - Ubuntu/Debian (18.04+)
 - Fedora/RHEL/CentOS (7+)
 - Arch Linux/Manjaro
+
+**Supported Architectures:**
+- x86_64 (Intel/AMD 64-bit)
+- aarch64 (ARM64 - Raspberry Pi, AWS Graviton, etc.)
 
 ### Installation via Docker (Windows, Mac, Linux)
 
@@ -209,6 +232,9 @@ docker stop nexadb
 
 # Remove
 docker rm nexadb
+
+# Use nexa CLI inside Docker
+docker exec -it nexadb nexa -u root -p
 ```
 
 **What you get:**
@@ -216,7 +242,13 @@ docker rm nexadb
 - ✅ Isolated environment
 - ✅ Persistent data volume
 - ✅ Auto-restart on reboot
+- ✅ Nexa CLI included (works inside container)
 - ✅ Easy updates: `docker pull krishcdbry/nexadb:latest`
+
+**Supported Docker Platforms:**
+- Linux (x86_64, ARM64)
+- macOS (Intel, Apple Silicon)
+- Windows (WSL2)
 
 ### Cloud Deployment (Railway, Render, Fly.io)
 
@@ -272,34 +304,55 @@ python3 nexadb_server.py
 open http://localhost:9999
 ```
 
-### Interactive CLI
+### Interactive CLI (Nexa)
+
+**NEW: Rust-based CLI for blazing-fast performance!**
+
+Nexa is a zero-dependency, standalone CLI built in Rust. Think `mysql` for MySQL, but `nexa` for NexaDB.
 
 ```bash
-# Start the interactive shell
-python3 nexadb_cli.py -u root -p
+# Start nexa interactive terminal (automatically installed with NexaDB)
+nexa -u root -p
 Password: ********
 
-Connected to NexaDB v2.0.0
+Connected to NexaDB v2.0.0 (Binary Protocol: localhost:6970)
 
-nexadb> USE movies
+nexa> collections
+✓ Found 2 collection(s):
+  [1] movies
+  [2] users
+
+nexa> use movies
 ✓ Switched to collection 'movies'
 
-nexadb(movies)> CREATE {"title": "The Matrix", "year": 1999}
+nexa(movies)> insert {"title": "The Matrix", "year": 1999, "vector": [0.9, 0.15, 0.97, 0.5]}
 ✓ Document created: doc_abc123
 
-nexadb(movies)> QUERY {"year": {"$gte": 2000}}
+nexa(movies)> query {"year": {"$gte": 2000}}
 ✓ Found 5 document(s)
 
-nexadb(movies)> VECTOR_SEARCH [0.5, 0.2, 0.98, 0.5] 3 4
+nexa(movies)> vector_search [0.5, 0.2, 0.98, 0.5] 3 4
 ✓ Found 3 similar document(s):
-[1] 98.91% match
-{
-  "title": "Blade Runner 2049",
-  "year": 2017
-}
+[1] 98.91% match - Blade Runner 2049
 
-nexadb(movies)> EXIT
+nexa(movies)> count
+✓ Document count: 127
+
+nexa(movies)> exit
 Goodbye! 👋
+```
+
+**Nexa Features:**
+- ✅ **Zero dependencies** - Single standalone binary
+- ✅ **Blazing fast** - Written in Rust, uses MessagePack binary protocol
+- ✅ **Cross-platform** - Works on macOS, Linux, Windows
+- ✅ **Auto-installed** - Comes with Homebrew, Docker, and Linux installer
+- ✅ **Full-featured** - All commands: insert, read, update, delete, query, vector search, count
+- ✅ **History & completion** - Readline support with command history
+
+**Also available: Python CLI** (for scripting):
+```bash
+python3 nexadb_cli.py -u root -p
 ```
 
 ### 5-Minute Quick Start: Movie Semantic Search
@@ -889,7 +942,8 @@ python3 admin_server.py --port 9999 --data-dir ./nexadb_data
 - [x] Homebrew distribution (macOS)
 - [x] Linux install script (Ubuntu, Fedora, Arch)
 - [x] **Docker image** (Windows, Mac, Linux) 🐳
-- [x] **Interactive CLI** (`nexadb-cli -u root -p`) 💻
+- [x] **Interactive Python CLI** (`python3 nexadb_cli.py -u root -p`) 💻
+- [x] **Rust CLI** (`nexa -u root -p`) - Zero-dependency, cross-platform 🦀
 - [x] **Cloud deployment** (Railway, Render, Fly.io) ☁️
 - [x] Production-grade NexaClient with reconnection
 
