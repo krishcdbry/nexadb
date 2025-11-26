@@ -19,6 +19,8 @@ const MSG_UPDATE: u8 = 0x04;
 const MSG_DELETE: u8 = 0x05;
 const MSG_QUERY: u8 = 0x06;
 const MSG_VECTOR_SEARCH: u8 = 0x07;
+const MSG_LIST_COLLECTIONS: u8 = 0x08;
+const MSG_COUNT: u8 = 0x09;
 
 // Response types
 const MSG_SUCCESS: u8 = 0x81;
@@ -225,6 +227,32 @@ fn handle_command(client: &mut NexaClient, line: &str) -> Result<bool> {
             client.current_collection = Some(collection.to_string());
             println!("{}", format!("✓ Switched to collection '{}'", collection).green());
         }
+        "collections" => {
+            let msg = serde_json::json!({});
+            match client.send_message(MSG_LIST_COLLECTIONS, &msg) {
+                Ok(result) => {
+                    if let Some(collections) = result.get("collections").and_then(|c| c.as_array()) {
+                        if collections.is_empty() {
+                            println!("{}", "⚠ No collections found".yellow());
+                        } else {
+                            println!("{}", format!("✓ Found {} collection(s):", collections.len()).green());
+                            for (i, col) in collections.iter().enumerate() {
+                                let col_name = col.as_str().unwrap_or("unknown");
+                                let marker = if Some(col_name.to_string()) == client.current_collection {
+                                    "*"
+                                } else {
+                                    " "
+                                };
+                                println!("{} [{}] {}", marker, i + 1, col_name.cyan());
+                            }
+                        }
+                    } else {
+                        println!("{}", "⚠ No collections found".yellow());
+                    }
+                }
+                Err(e) => println!("{}", format!("✗ Error: {}", e).red()),
+            }
+        }
         "create" => {
             if client.current_collection.is_none() {
                 println!("{}", "✗ No collection selected. Use 'use <collection>' first.".red());
@@ -286,6 +314,93 @@ fn handle_command(client: &mut NexaClient, line: &str) -> Result<bool> {
                         }
                     } else {
                         println!("{}", "⚠ No documents found".yellow());
+                    }
+                }
+                Err(e) => println!("{}", format!("✗ Error: {}", e).red()),
+            }
+        }
+        "update" => {
+            if client.current_collection.is_none() {
+                println!("{}", "✗ No collection selected. Use 'use <collection>' first.".red());
+                return Ok(false);
+            }
+            if parts.len() < 3 {
+                println!("{}", "✗ Document ID and JSON data required".red());
+                println!("{}", "Usage: update <doc_id> <json>".blue());
+                return Ok(false);
+            }
+
+            let doc_id = parts[1];
+            let json_str = line.split_whitespace().skip(2).collect::<Vec<&str>>().join(" ");
+
+            if json_str.is_empty() {
+                println!("{}", "✗ JSON data required".red());
+                return Ok(false);
+            }
+
+            let data: Value = serde_json::from_str(&json_str)?;
+            let msg = serde_json::json!({
+                "collection": client.current_collection,
+                "document_id": doc_id,
+                "data": data
+            });
+
+            match client.send_message(MSG_UPDATE, &msg) {
+                Ok(result) => {
+                    println!("{}", format!("✓ Document updated: {}", doc_id).green());
+                    println!("{}", serde_json::to_string_pretty(&result)?.cyan());
+                }
+                Err(e) => println!("{}", format!("✗ Error: {}", e).red()),
+            }
+        }
+        "delete" => {
+            if client.current_collection.is_none() {
+                println!("{}", "✗ No collection selected. Use 'use <collection>' first.".red());
+                return Ok(false);
+            }
+            if parts.len() < 2 {
+                println!("{}", "✗ Document ID required".red());
+                println!("{}", "Usage: delete <doc_id>".blue());
+                return Ok(false);
+            }
+
+            let doc_id = parts[1];
+            let msg = serde_json::json!({
+                "collection": client.current_collection,
+                "document_id": doc_id
+            });
+
+            match client.send_message(MSG_DELETE, &msg) {
+                Ok(_) => {
+                    println!("{}", format!("✓ Document deleted: {}", doc_id).green());
+                }
+                Err(e) => println!("{}", format!("✗ Error: {}", e).red()),
+            }
+        }
+        "count" => {
+            if client.current_collection.is_none() {
+                println!("{}", "✗ No collection selected. Use 'use <collection>' first.".red());
+                return Ok(false);
+            }
+
+            let json_str = line.trim_start_matches("count").trim();
+            let filters: Value = if json_str.is_empty() {
+                serde_json::json!({})
+            } else {
+                serde_json::from_str(json_str)?
+            };
+
+            let msg = serde_json::json!({
+                "collection": client.current_collection,
+                "filters": filters
+            });
+
+            match client.send_message(MSG_COUNT, &msg) {
+                Ok(result) => {
+                    if let Some(count) = result.get("count").and_then(|c| c.as_u64()) {
+                        println!("{}", format!("✓ Document count: {}", count).green());
+                    } else {
+                        println!("{}", "✓ Count: 0".green());
                     }
                 }
                 Err(e) => println!("{}", format!("✗ Error: {}", e).red()),
