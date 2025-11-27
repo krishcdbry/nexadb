@@ -1,8 +1,8 @@
-# NexaDB - High-Performance Database with Native TOON Support
+# NexaDB - Database for AI Developers
 
 <div align="center">
 
-**The world's FIRST database with native TOON format support**
+**A lightweight NoSQL database with vector search, TOON format, and enterprise security built-in**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -626,6 +626,116 @@ for result in results:
     print(f"{result['_id']}: {result['count']} users")
 ```
 
+### Change Streams (Real-Time Events)
+
+**Watch for database changes in real-time!**
+
+NexaDB provides powerful change streams for real-time notifications when data changes. Perfect for:
+- 🔔 Real-time notifications
+- 💾 Cache invalidation
+- 📝 Audit logging
+- 🔄 Data synchronization
+- 📊 Real-time dashboards
+- ⚡ Event-driven architectures
+
+**Python Example:**
+```python
+from nexaclient import NexaClient
+
+client = NexaClient(host='localhost', port=6970, username='root', password='nexadb123')
+client.connect()
+
+# Watch for changes on 'orders' collection
+for change in client.watch('orders'):
+    if change['operationType'] == 'insert':
+        order = change['fullDocument']
+        print(f"New order from {order['customer']}: ${order['total']}")
+        # Send notification, update cache, trigger workflow, etc.
+
+    elif change['operationType'] == 'update':
+        doc_id = change['documentKey']['_id']
+        updates = change['updateDescription']['updatedFields']
+        print(f"Order {doc_id} updated: {updates}")
+
+    elif change['operationType'] == 'delete':
+        doc_id = change['documentKey']['_id']
+        print(f"Order {doc_id} was deleted")
+```
+
+**Real-World Use Cases:**
+
+```python
+# 1. Cache Invalidation
+import redis
+
+cache = redis.Redis()
+
+for change in client.watch('products', operations=['update', 'delete']):
+    product_id = change['documentKey']['_id']
+    cache.delete(f"product:{product_id}")
+    print(f"Invalidated cache for product: {product_id}")
+
+# 2. Audit Logging
+import logging
+
+logger = logging.getLogger('audit')
+
+for change in client.watch():  # Watch ALL collections
+    logger.info(
+        f"{change['operationType']} on {change['ns']['coll']} "
+        f"(doc: {change['documentKey']['_id']})"
+    )
+
+# 3. Real-Time Notifications
+import smtplib
+
+for change in client.watch('orders', operations=['insert']):
+    order = change['fullDocument']
+    send_email(
+        to=order['customer_email'],
+        subject=f"Order {order['_id']} Confirmed",
+        body=f"Thank you! Your order for ${order['total']} is confirmed."
+    )
+```
+
+**Change Event Format:**
+```python
+{
+    'operationType': 'insert',  # insert, update, delete, dropCollection
+    'ns': {
+        'db': 'nexadb',
+        'coll': 'orders'
+    },
+    'documentKey': {
+        '_id': 'abc123def456'
+    },
+    'fullDocument': {  # Only for insert/update
+        '_id': 'abc123def456',
+        'customer': 'Alice',
+        'total': 99.99,
+        '_created_at': '2025-11-27T...',
+        '_updated_at': '2025-11-27T...'
+    },
+    'updateDescription': {  # Only for update
+        'updatedFields': {
+            'status': 'shipped',
+            'tracking': 'XYZ123'
+        }
+    },
+    'timestamp': 1700000000.123
+}
+```
+
+**Key Features:**
+- ✅ Works over network (no filesystem access needed)
+- ✅ Simple, intuitive API
+- ✅ Filter by collection and operation type
+- ✅ Can connect to remote NexaDB servers
+- ✅ Thread-safe implementation
+- ✅ Automatic cleanup on disconnect
+
+📚 **[Complete Change Streams Guide](CHANGE_STREAMS_NETWORK.md)**
+
 ---
 
 ## 🔌 JavaScript/Node.js Client Usage
@@ -1016,7 +1126,7 @@ Contributions are welcome! Please feel free to submit pull requests.
 
 <div align="center">
 
-**🚀 The world's FIRST database with native TOON support!**
+**🚀 NexaDB**
 
 **Built by [Krish](https://github.com/krishcdbry)**
 

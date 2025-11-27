@@ -20,6 +20,7 @@ import socket
 import struct
 import threading
 import time
+import queue
 from typing import Dict, Any, List, Optional, Tuple
 from queue import Queue, Empty
 import msgpack
@@ -54,12 +55,17 @@ MSG_DROP_COLLECTION = 0x21
 MSG_COLLECTION_STATS = 0x22
 MSG_GET_VECTORS = 0x23
 
+# Change stream operations (MongoDB-style)
+MSG_SUBSCRIBE_CHANGES = 0x30
+MSG_UNSUBSCRIBE_CHANGES = 0x31
+
 # Server → Client response types
 MSG_SUCCESS = 0x81
 MSG_ERROR = 0x82
 MSG_NOT_FOUND = 0x83
 MSG_DUPLICATE = 0x84
 MSG_PONG = 0x88
+MSG_CHANGE_EVENT = 0x90  # Server pushes change events
 
 
 class NexaDBError(Exception):
@@ -314,7 +320,7 @@ class NexaDBConnection:
         data = msgpack.unpackb(payload, raw=False)
 
         # Handle response type
-        if msg_type == MSG_SUCCESS or msg_type == MSG_PONG:
+        if msg_type == MSG_SUCCESS or msg_type == MSG_PONG or msg_type == MSG_CHANGE_EVENT:
             return data
         elif msg_type == MSG_ERROR:
             raise OperationError(data.get('error', 'Unknown error'))
@@ -789,6 +795,91 @@ class NexaClient:
             Statistics dictionary
         """
         return self.conn.stats.copy()
+
+    # ============================================================================
+    # CHANGE STREAMS (MongoDB-style)
+    # ============================================================================
+
+    def watch(
+        self,
+        collection: Optional[str] = None,
+        operations: Optional[List[str]] = None
+    ):
+        """
+        Watch for database changes (MongoDB-style change streams).
+
+        Args:
+            collection: Optional collection name to watch (None = watch all collections)
+            operations: Optional list of operations to watch (default: ['insert', 'update', 'delete'])
+
+        Yields:
+            Change events as they occur
+
+        Example:
+            >>> # Watch all changes on 'orders' collection
+            >>> for change in client.watch('orders'):
+            ...     print(f"Change: {change['operationType']}")
+
+            >>> # Watch only inserts and updates
+            >>> for change in client.watch('orders', operations=['insert', 'update']):
+            ...     print(f"New/Updated order: {change}")
+        """
+        # Queue for receiving change events
+        event_queue = queue.Queue()
+        stop_watching = threading.Event()
+
+        # Subscribe to changes
+        subscribe_response = self.conn.send_message(MSG_SUBSCRIBE_CHANGES, {
+            'collection': collection,
+            'operations': operations or ['insert', 'update', 'delete']
+        })
+
+        if not subscribe_response.get('subscribed'):
+            raise OperationError("Failed to subscribe to change stream")
+
+        # Background thread to receive change events
+        def receive_events():
+            try:
+                while not stop_watching.is_set():
+                    # Read change event from server
+                    try:
+                        self.conn.socket.settimeout(1.0)  # 1 second timeout
+                        event_data = self.conn._read_response()
+                        event_queue.put(event_data)
+                    except socket.timeout:
+                        continue  # Check if we should stop
+                    except Exception as e:
+                        if not stop_watching.is_set():
+                            event_queue.put(e)
+                        break
+            except Exception as e:
+                event_queue.put(e)
+
+        receiver_thread = threading.Thread(target=receive_events, daemon=True)
+        receiver_thread.start()
+
+        try:
+            # Yield events as they arrive
+            while True:
+                try:
+                    event = event_queue.get(timeout=1.0)
+                    if isinstance(event, Exception):
+                        raise event
+                    yield event
+                except queue.Empty:
+                    continue
+
+        finally:
+            # Cleanup: Unsubscribe from changes
+            stop_watching.set()
+            receiver_thread.join(timeout=2.0)
+
+            try:
+                self.conn.send_message(MSG_UNSUBSCRIBE_CHANGES, {
+                    'collection': collection
+                })
+            except:
+                pass  # Ignore errors during cleanup
 
     def __repr__(self) -> str:
         """String representation."""

@@ -25,6 +25,7 @@ from typing import Any, Dict, List, Optional, Tuple, Callable
 from datetime import datetime
 from storage_engine import LSMStorageEngine
 from vector_index import create_vector_index, HAS_HNSWLIB
+from change_events import ChangeStream, ChangeEvent
 
 # Try to use fast vector index (faiss-based, 50-100x faster!)
 try:
@@ -284,11 +285,12 @@ class Collection:
     OPTIMIZED: Now with intelligent query optimizer!
     """
 
-    def __init__(self, name: str, engine: LSMStorageEngine):
+    def __init__(self, name: str, engine: LSMStorageEngine, change_stream: Optional[ChangeStream] = None):
         self.name = name
         self.engine = engine
         self.indexes: Dict[str, BTreeIndex] = {}  # field_name -> BTreeIndex
         self.optimizer = QueryOptimizer()
+        self.change_stream = change_stream
 
     def _doc_key(self, doc_id: str) -> str:
         """Generate storage key for document"""
@@ -347,6 +349,16 @@ class Collection:
             value = self._get_nested_field(doc.to_dict(), field)
             if value is not None:
                 index.add(doc.id, value)
+
+        # Emit change event
+        if self.change_stream:
+            event = ChangeEvent(
+                operation=ChangeEvent.INSERT,
+                collection=self.name,
+                document_id=doc.id,
+                full_document=doc.to_dict()
+            )
+            self.change_stream.emit(event)
 
         return doc.id
 
@@ -481,6 +493,17 @@ class Collection:
         # Store updated document
         self.engine.put(self._doc_key(doc.id), doc.to_bytes())
 
+        # Emit change event
+        if self.change_stream:
+            event = ChangeEvent(
+                operation=ChangeEvent.UPDATE,
+                collection=self.name,
+                document_id=doc.id,
+                full_document=doc.to_dict(),
+                update_description={'updatedFields': updates}
+            )
+            self.change_stream.emit(event)
+
         return True
 
     def update_many(self, query: Dict[str, Any], updates: Dict[str, Any]) -> int:
@@ -513,6 +536,15 @@ class Collection:
         # This handles cleanup for documents inserted via auto-indexing
         vector_key = f"vector:{self.name}:{doc_id}"
         self.engine.delete(vector_key)  # Safe to call even if vector doesn't exist
+
+        # Emit change event
+        if self.change_stream:
+            event = ChangeEvent(
+                operation=ChangeEvent.DELETE,
+                collection=self.name,
+                document_id=doc_id
+            )
+            self.change_stream.emit(event)
 
         return True
 
@@ -925,11 +957,12 @@ class VeloxDB:
         self.engine = LSMStorageEngine(data_dir)
         self.collections = {}
         self.vector_collections = {}
+        self.change_stream = ChangeStream()  # MongoDB-style change streams
 
     def collection(self, name: str) -> Collection:
         """Get or create collection"""
         if name not in self.collections:
-            self.collections[name] = Collection(name, self.engine)
+            self.collections[name] = Collection(name, self.engine, self.change_stream)
         return self.collections[name]
 
     def vector_collection(self, name: str, dimensions: int = 768) -> VectorCollection:
@@ -959,8 +992,39 @@ class VeloxDB:
         if name in self.collections:
             del self.collections[name]
 
+        # Emit change event
+        if self.change_stream:
+            event = ChangeEvent(
+                operation=ChangeEvent.DROP_COLLECTION,
+                collection=name
+            )
+            self.change_stream.emit(event)
+
         # Return True if we deleted anything
         return len(all_collection_keys) > 0 or len(all_vectors) > 0
+
+    def watch(self, collection: Optional[str] = None):
+        """
+        Watch for database changes (MongoDB-style change streams).
+
+        Args:
+            collection: Optional collection name to watch (None = watch all collections)
+
+        Returns:
+            ChangeStream cursor that yields change events
+
+        Example:
+            # Listen to all changes
+            def on_insert(event):
+                print(f"New document: {event['fullDocument']}")
+
+            db.change_stream.on('insert', on_insert)
+
+            # Or use watch() for cursor-style iteration
+            for change in db.watch(collection='users'):
+                print(f"Change: {change}")
+        """
+        return self.change_stream.watch(collection=collection)
 
     def list_collections(self) -> List[str]:
         """List all collections (scans storage engine for existing collections)"""

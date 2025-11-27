@@ -106,6 +106,8 @@ class NexaDBBinaryProtocol:
     MSG_LIST_COLLECTIONS = 0x20  # List all collections
     MSG_DROP_COLLECTION = 0x21  # Drop a collection
     MSG_GET_VECTORS = 0x23  # Get vector statistics
+    MSG_SUBSCRIBE_CHANGES = 0x30  # Subscribe to change stream
+    MSG_UNSUBSCRIBE_CHANGES = 0x31  # Unsubscribe from change stream
 
     # Server → Client response types
     MSG_SUCCESS = 0x81
@@ -116,6 +118,7 @@ class NexaDBBinaryProtocol:
     MSG_STREAM_CHUNK = 0x86
     MSG_STREAM_END = 0x87
     MSG_PONG = 0x88
+    MSG_CHANGE_EVENT = 0x90  # Server pushes change events
 
     @staticmethod
     def pack_message(msg_type: int, data: Any) -> bytes:
@@ -213,6 +216,10 @@ class NexaDBBinaryServer:
         self.sessions = {}
         self.sessions_lock = threading.Lock()
 
+        # Change stream subscriptions: {address: {socket, collection, operations}}
+        self.subscriptions = {}
+        self.subscriptions_lock = threading.Lock()
+
         # Statistics
         self.stats = {
             'total_connections': 0,
@@ -223,6 +230,9 @@ class NexaDBBinaryServer:
             'start_time': time.time()
         }
         self.stats_lock = threading.Lock()
+
+        # Register global change stream listener
+        self._setup_change_stream()
 
     def start(self):
         """Start binary protocol server."""
@@ -356,6 +366,11 @@ class NexaDBBinaryServer:
             with self.sessions_lock:
                 if address in self.sessions:
                     del self.sessions[address]
+
+            # Remove subscription
+            with self.subscriptions_lock:
+                if address in self.subscriptions:
+                    del self.subscriptions[address]
 
             with self.stats_lock:
                 self.stats['active_connections'] -= 1
@@ -503,6 +518,14 @@ class NexaDBBinaryServer:
             elif msg_type == NexaDBBinaryProtocol.MSG_GET_VECTORS:
                 # GET_VECTORS - Get vector statistics
                 self._handle_get_vectors(sock)
+
+            elif msg_type == NexaDBBinaryProtocol.MSG_SUBSCRIBE_CHANGES:
+                # SUBSCRIBE_CHANGES - Subscribe to change stream
+                self._handle_subscribe_changes(sock, data, address)
+
+            elif msg_type == NexaDBBinaryProtocol.MSG_UNSUBSCRIBE_CHANGES:
+                # UNSUBSCRIBE_CHANGES - Unsubscribe from change stream
+                self._handle_unsubscribe_changes(sock, data, address)
 
             else:
                 self._send_error(sock, f"Unknown message type: {msg_type}")
@@ -1115,6 +1138,85 @@ class NexaDBBinaryServer:
             })
         except Exception as e:
             self._send_error(sock, f"Failed to get vectors: {str(e)}")
+
+    def _setup_change_stream(self):
+        """Setup global change stream listener to broadcast events to subscribed clients."""
+        def broadcast_change(event):
+            """Broadcast change event to all subscribed clients (async)."""
+            def _send_async():
+                event_collection = event['ns']['coll']
+                event_operation = event['operationType']
+
+                with self.subscriptions_lock:
+                    # Find all subscribed clients that match this event
+                    for address, sub_info in list(self.subscriptions.items()):
+                        try:
+                            # Check if client is subscribed to this collection
+                            if sub_info['collection'] and sub_info['collection'] != event_collection:
+                                continue  # Skip if subscribed to different collection
+
+                            # Check if client is subscribed to this operation
+                            if event_operation not in sub_info['operations']:
+                                continue  # Skip if not subscribed to this operation
+
+                            # Send change event to client
+                            try:
+                                self._send_message(
+                                    sub_info['socket'],
+                                    NexaDBBinaryProtocol.MSG_CHANGE_EVENT,
+                                    event
+                                )
+                            except Exception as e:
+                                print(f"[CHANGE_STREAM] Failed to send event to {address}: {e}")
+                                # Remove failed subscription
+                                del self.subscriptions[address]
+
+                        except Exception as e:
+                            print(f"[CHANGE_STREAM] Error processing subscription for {address}: {e}")
+
+            # Send events asynchronously to avoid blocking the main thread
+            threading.Thread(target=_send_async, daemon=True).start()
+
+        # Register global listener for all operations
+        for operation in ['insert', 'update', 'delete', 'dropCollection']:
+            self.db.change_stream.on(operation, broadcast_change)
+
+        print("[CHANGE_STREAM] Global change stream listener registered")
+
+    def _handle_subscribe_changes(self, sock: socket.socket, data: Dict[str, Any], address: tuple):
+        """Handle SUBSCRIBE_CHANGES message."""
+        collection = data.get('collection')  # None = watch all collections
+        operations = data.get('operations', ['insert', 'update', 'delete'])
+
+        # Store subscription
+        with self.subscriptions_lock:
+            self.subscriptions[address] = {
+                'socket': sock,
+                'collection': collection,
+                'operations': operations
+            }
+
+        collection_str = collection if collection else "all collections"
+        print(f"[CHANGE_STREAM] Client {address[0]}:{address[1]} subscribed to {collection_str} ({', '.join(operations)})")
+
+        self._send_success(sock, {
+            'subscribed': True,
+            'collection': collection,
+            'operations': operations,
+            'message': f"Subscribed to change stream for {collection_str}"
+        })
+
+    def _handle_unsubscribe_changes(self, sock: socket.socket, data: Dict[str, Any], address: tuple):
+        """Handle UNSUBSCRIBE_CHANGES message."""
+        with self.subscriptions_lock:
+            if address in self.subscriptions:
+                del self.subscriptions[address]
+                print(f"[CHANGE_STREAM] Client {address[0]}:{address[1]} unsubscribed from change stream")
+
+        self._send_success(sock, {
+            'unsubscribed': True,
+            'message': 'Unsubscribed from change stream'
+        })
 
     def get_stats(self) -> Dict[str, Any]:
         """Get server statistics."""
