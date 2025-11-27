@@ -759,7 +759,7 @@ class NexaDBServer:
         print(f"   {WHITE}└─{RESET} Password:      {GREEN}nexadb123{RESET}")
 
         print(f"\n{BLUE}{BOLD}📦 CONNECT TO NEXADB{RESET}")
-        print(f"   {WHITE}├─{RESET} {BOLD}Python:{RESET}        {CYAN}pip install nexadb-python{RESET}")
+        print(f"   {WHITE}├─{RESET} {BOLD}Python:{RESET}        {CYAN}pip install nexadbclient{RESET}")
         print(f"   {WHITE}├─{RESET} {BOLD}Node.js:{RESET}       {CYAN}npm install nexaclient{RESET}")
         print(f"   {WHITE}└─{RESET} {BOLD}Docs:{RESET}          {GREEN}https://nexadb.io/docs{RESET}")
 
