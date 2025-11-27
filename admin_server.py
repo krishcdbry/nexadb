@@ -150,8 +150,8 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
             '/admin_panel/login.html',
             '/admin_panel/css/styles.css',
             '/admin_panel/js/auth.js',
-            '/logo-light.svg',
-            '/logo-dark.svg'
+            '/admin_panel/logo-light.svg',
+            '/admin_panel/logo-dark.svg'
         ]
 
         # Check if this is a public path

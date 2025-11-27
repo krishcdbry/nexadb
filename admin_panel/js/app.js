@@ -17,8 +17,8 @@
                 // Dark theme uses light logo (white/light colored)
                 // Light theme uses dark logo (dark colored)
                 logoImage.src = theme === 'dark'
-                    ? '/logo-light.svg'
-                    : '/logo-dark.svg';
+                    ? '/admin_panel/logo-light.svg'
+                    : '/admin_panel/logo-dark.svg';
             }
         }
 
