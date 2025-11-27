@@ -77,7 +77,7 @@ impl NexaClient {
         });
         client.send_message(MSG_CONNECT, &auth_data)?;
 
-        println!("{}", "✓ Connected to NexaDB v2.0.0".green().bold());
+        println!("{}", "✓ Connected to NexaDB v2.3.0".green().bold());
         println!();
 
         Ok(client)
@@ -151,7 +151,7 @@ fn print_banner() {
 ║     ██║ ╚████║███████╗██╔╝ ██╗██║  ██║██████╔╝██████╔╝              ║
 ║     ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚═════╝               ║
 ║                                                                       ║
-║            Database for AI Developers - v2.0.0                       ║
+║            Database for AI Developers - v2.3.0                       ║
 ║                                                                       ║
 ╚═══════════════════════════════════════════════════════════════════════╝
 
