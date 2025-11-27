@@ -7,7 +7,7 @@ FROM python:3.11-slim
 # Metadata
 LABEL maintainer="NexaDB Team <team@nexadb.dev>"
 LABEL description="NexaDB - Database for AI Developers"
-LABEL version="2.2.0"
+LABEL version="2.2.10"
 
 # Set working directory
 WORKDIR /app
@@ -30,7 +30,7 @@ COPY reset_root_password.py .
 COPY admin_panel/ admin_panel/
 
 # Install Python dependencies
-RUN pip install --no-cache-dir msgpack
+RUN pip install --no-cache-dir msgpack sortedcontainers pybloom_live numpy
 
 # Download nexa CLI binary (architecture-aware) - optional
 RUN ARCH=$(uname -m) && \
