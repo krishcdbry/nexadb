@@ -190,13 +190,13 @@ else
 fi
 
 if [ -n "$NEXA_BINARY" ]; then
-    # Download latest nexa binary from GitHub releases
-    NEXA_URL="https://github.com/krishcdbry/nexadb/releases/latest/download/$NEXA_BINARY"
+    # Download nexa CLI v2.2.0 from GitHub releases
+    NEXA_URL="https://github.com/krishcdbry/nexadb/releases/download/cli-v2.2.0/$NEXA_BINARY"
     if curl -fsSL "$NEXA_URL" -o "$BIN_DIR/nexa" 2>/dev/null; then
         chmod +x "$BIN_DIR/nexa"
-        echo -e "${GREEN}✓ nexa CLI installed${RESET}"
+        echo -e "${GREEN}✓ nexa CLI v2.2.0 installed${RESET}"
     else
-        echo -e "${YELLOW}⚠ Could not download nexa CLI. It will be available after first release.${RESET}"
+        echo -e "${YELLOW}⚠ Could not download nexa CLI. Skipping...${RESET}"
     fi
 fi
 
