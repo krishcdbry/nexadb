@@ -15,7 +15,7 @@ This example uses TWO connections:
 2. Operations connection (for CRUD operations)
 """
 
-from nexadb_client import NexaClient
+from nexaclient import NexaClient
 
 print("="*70)
 print("NexaDB Network Change Listener")
