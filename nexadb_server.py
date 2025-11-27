@@ -868,21 +868,60 @@ def main():
 
     try:
         if start_all:
-            # Launch binary protocol server in background
+            # Launch binary protocol server in background with logging
             print("[INIT] Starting Binary Protocol Server (port 6970)...")
+
+            # Create log files
+            binary_log_path = os.path.join(data_dir, 'binary_server.log')
+            admin_log_path = os.path.join(data_dir, 'admin_server.log')
+
+            binary_log = open(binary_log_path, 'w')
             binary_process = subprocess.Popen(
                 [sys.executable, binary_server_path, '--data-dir', data_dir, '--port', '6970'],
-                stdout=subprocess.PIPE,
+                stdout=binary_log,
                 stderr=subprocess.STDOUT,
                 text=True
             )
+
+            # Wait and verify binary server started
+            print("[INIT] Waiting for Binary Protocol Server to start...")
             time.sleep(3.0)  # Give binary server time to fully initialize
+
+            # Check if binary server is still running
+            if binary_process.poll() is not None:
+                binary_log.close()
+                # Binary server crashed - read log file
+                with open(binary_log_path, 'r') as f:
+                    error_log = f.read()
+                print(f"[ERROR] Binary server failed to start. Check log: {binary_log_path}")
+                print(f"[ERROR] Last 20 lines of log:\n{chr(10).join(error_log.split(chr(10))[-20:])}")
+                raise Exception(f"Binary server crashed on startup. Check {binary_log_path} for details.")
+
+            # Verify port 6970 is listening
+            import socket as sock_module
+            try:
+                test_sock = sock_module.socket(sock_module.AF_INET, sock_module.SOCK_STREAM)
+                test_sock.settimeout(1)
+                result = test_sock.connect_ex(('localhost', 6970))
+                test_sock.close()
+
+                if result != 0:
+                    print(f"[ERROR] Binary server running but port 6970 not listening. Log: {binary_log_path}")
+                    binary_log.close()
+                    raise Exception(f"Binary server not listening on port 6970. Check {binary_log_path} for details.")
+            except Exception as e:
+                print(f"[ERROR] Failed to verify binary server: {e}")
+                binary_log.close()
+                raise Exception(f"Binary server verification failed: {e}")
+
+            print("[INIT] ✅ Binary Protocol Server started successfully")
 
             # Launch admin UI server in background
             print("[INIT] Starting Admin UI Server (port 9999)...")
+            admin_log = open(admin_log_path, 'w')
             admin_process = subprocess.Popen(
                 [sys.executable, admin_server_path, '--data-dir', data_dir, '--port', '9999'],
-                stdout=subprocess.PIPE,
+                stdout=admin_log,
                 stderr=subprocess.STDOUT,
                 text=True
             )
