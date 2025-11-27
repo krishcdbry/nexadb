@@ -876,7 +876,7 @@ def main():
                 stderr=subprocess.STDOUT,
                 text=True
             )
-            time.sleep(0.5)  # Give it a moment to start
+            time.sleep(3.0)  # Give binary server time to fully initialize
 
             # Launch admin UI server in background
             print("[INIT] Starting Admin UI Server (port 9999)...")
@@ -886,7 +886,7 @@ def main():
                 stderr=subprocess.STDOUT,
                 text=True
             )
-            time.sleep(0.5)  # Give it a moment to start
+            time.sleep(1.0)  # Give admin server time to start
 
         # Start REST API server in main process
         server = NexaDBServer(host=host, port=port, data_dir=data_dir)
