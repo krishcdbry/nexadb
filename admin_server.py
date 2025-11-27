@@ -149,9 +149,7 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
         public_paths = [
             '/admin_panel/login.html',
             '/admin_panel/css/styles.css',
-            '/admin_panel/js/auth.js',
-            '/admin_panel/logo-light.svg',
-            '/admin_panel/logo-dark.svg'
+            '/admin_panel/js/auth.js'
         ]
 
         # Check if this is a public path
