@@ -20,7 +20,7 @@ from typing import Dict, Any, Optional
 import hashlib
 import time
 
-# Import NexaClient (MySQL-style v2.0 architecture)
+# Import NexaClient and authentication
 import sys
 sys.path.append('.')
 from nexadb_client import NexaClient
@@ -234,7 +234,7 @@ class NexaDBHandler(BaseHTTPRequestHandler):
                 'message': 'Stats endpoint will be available in next version',
                 'stats': {
                     'collections': len(self.client.list_collections()),
-                    'version': '2.0.0-mysql-style'
+                    'version': '2.2.1'
                 }
             })
             return
@@ -681,7 +681,7 @@ class NexaDBServer:
         print(f"[INIT] Connecting to NexaDB Binary Server (port 6970)")
         NexaDBHandler.client = NexaClient(host='localhost', port=6970)
         NexaDBHandler.client.connect()
-        print(f"[INIT] ✅ Connected to binary server (MySQL-style v2.0 architecture)")
+        print(f"[INIT] ✅ Connected to binary server")
 
         # Initialize unified authentication
         print(f"[SECURITY] Initializing unified authentication")
