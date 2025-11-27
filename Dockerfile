@@ -35,9 +35,9 @@ RUN pip install --no-cache-dir msgpack
 # Download nexa CLI binary (architecture-aware)
 RUN ARCH=$(uname -m) && \
     if [ "$ARCH" = "x86_64" ]; then \
-        NEXA_URL="https://github.com/krishcdbry/nexadb/releases/download/cli-v2.0.0/nexa-x86_64-unknown-linux-gnu"; \
+        NEXA_URL="https://github.com/krishcdbry/nexadb/releases/download/cli-v2.2.0/nexa-x86_64-unknown-linux-gnu"; \
     elif [ "$ARCH" = "aarch64" ]; then \
-        NEXA_URL="https://github.com/krishcdbry/nexadb/releases/download/cli-v2.0.0/nexa-aarch64-unknown-linux-gnu"; \
+        NEXA_URL="https://github.com/krishcdbry/nexadb/releases/download/cli-v2.2.0/nexa-aarch64-unknown-linux-gnu"; \
     fi && \
     curl -fsSL "$NEXA_URL" -o /usr/local/bin/nexa && \
     chmod +x /usr/local/bin/nexa
