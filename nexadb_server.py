@@ -885,9 +885,9 @@ def main():
 
             # Wait and verify binary server started
             print("[INIT] Waiting for Binary Protocol Server to start...")
-            time.sleep(3.0)  # Give binary server time to fully initialize
 
-            # Check if binary server is still running
+            # Check if binary server is still running (first quick check)
+            time.sleep(2.0)
             if binary_process.poll() is not None:
                 binary_log.close()
                 # Binary server crashed - read log file
@@ -897,22 +897,52 @@ def main():
                 print(f"[ERROR] Last 20 lines of log:\n{chr(10).join(error_log.split(chr(10))[-20:])}")
                 raise Exception(f"Binary server crashed on startup. Check {binary_log_path} for details.")
 
-            # Verify port 6970 is listening
+            # Verify port 6970 is listening (retry up to 10 times with 1 second delay)
             import socket as sock_module
-            try:
-                test_sock = sock_module.socket(sock_module.AF_INET, sock_module.SOCK_STREAM)
-                test_sock.settimeout(1)
-                result = test_sock.connect_ex(('localhost', 6970))
-                test_sock.close()
+            max_retries = 10
+            for attempt in range(max_retries):
+                try:
+                    # Check if process is still alive
+                    if binary_process.poll() is not None:
+                        binary_log.close()
+                        with open(binary_log_path, 'r') as f:
+                            error_log = f.read()
+                        print(f"[ERROR] Binary server crashed during startup. Check log: {binary_log_path}")
+                        print(f"[ERROR] Last 20 lines of log:\n{chr(10).join(error_log.split(chr(10))[-20:])}")
+                        raise Exception(f"Binary server crashed on startup. Check {binary_log_path} for details.")
 
-                if result != 0:
-                    print(f"[ERROR] Binary server running but port 6970 not listening. Log: {binary_log_path}")
-                    binary_log.close()
-                    raise Exception(f"Binary server not listening on port 6970. Check {binary_log_path} for details.")
-            except Exception as e:
-                print(f"[ERROR] Failed to verify binary server: {e}")
-                binary_log.close()
-                raise Exception(f"Binary server verification failed: {e}")
+                    # Try to connect to port 6970
+                    test_sock = sock_module.socket(sock_module.AF_INET, sock_module.SOCK_STREAM)
+                    test_sock.settimeout(1)
+                    result = test_sock.connect_ex(('localhost', 6970))
+                    test_sock.close()
+
+                    if result == 0:
+                        # Success! Port is listening
+                        break
+                    else:
+                        if attempt < max_retries - 1:
+                            print(f"[INIT] Port 6970 not ready yet, waiting... (attempt {attempt + 1}/{max_retries})")
+                            time.sleep(1.0)
+                        else:
+                            # Final attempt failed
+                            print(f"[ERROR] Binary server running but port 6970 not listening after {max_retries} attempts.")
+                            print(f"[ERROR] Check log: {binary_log_path}")
+                            binary_log.close()
+                            # Try to read the log for debugging
+                            try:
+                                with open(binary_log_path, 'r') as f:
+                                    error_log = f.read()
+                                print(f"[ERROR] Last 20 lines of log:\n{chr(10).join(error_log.split(chr(10))[-20:])}")
+                            except:
+                                pass
+                            raise Exception(f"Binary server not listening on port 6970 after {max_retries} attempts. Check {binary_log_path} for details.")
+                except Exception as e:
+                    if attempt == max_retries - 1:
+                        print(f"[ERROR] Failed to verify binary server: {e}")
+                        binary_log.close()
+                        raise Exception(f"Binary server verification failed: {e}")
+                    # Continue retrying
 
             print("[INIT] ✅ Binary Protocol Server started successfully")
 
