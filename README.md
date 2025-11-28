@@ -173,8 +173,8 @@ nexa -u root -p
 ### Installation via Install Script (Linux/Ubuntu)
 
 ```bash
-# One-line install
-curl -fsSL https://raw.githubusercontent.com/krishcdbry/nexadb/main/install.sh | bash
+# One-line install (cache-busted for latest version)
+curl -fsSL https://raw.githubusercontent.com/krishcdbry/nexadb/main/install.sh?v=2.2.11 | bash
 
 # Reload your shell
 source ~/.bashrc  # or ~/.zshrc

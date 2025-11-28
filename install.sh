@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # NexaDB Installation Script for Linux/Ubuntu
-# Usage: curl -fsSL https://raw.githubusercontent.com/krishcdbry/nexadb/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/krishcdbry/nexadb/main/install.sh?v=2.2.11 | bash
+# Note: Add ?v=X.Y.Z to bypass GitHub CDN cache
 
 set -e
 
