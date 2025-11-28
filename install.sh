@@ -83,10 +83,12 @@ echo -e "${GREEN}✓ Dependencies installed${RESET}"
 
 # Install Python dependencies
 echo -e "${CYAN}Installing Python packages...${RESET}"
-PYTHON_PACKAGES="msgpack sortedcontainers pybloom_live numpy"
+# Core dependencies: msgpack (binary protocol), sortedcontainers (LSM tree), pybloom_live (bloom filters)
+# Bloom filter dependencies: xxhash, bitarray (required by pybloom_live)
+# Performance: numpy (10x faster vector operations)
+PYTHON_PACKAGES="msgpack sortedcontainers pybloom_live xxhash bitarray numpy"
 
 echo -e "${CYAN}Installing: $PYTHON_PACKAGES${RESET}"
-echo -e "${CYAN}Note: numpy provides 10x faster vector operations${RESET}"
 
 # Try system-wide install first, fall back to user install
 if $SUDO pip3 install $PYTHON_PACKAGES >/dev/null 2>&1; then
