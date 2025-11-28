@@ -113,6 +113,8 @@ FILES=(
     "storage_engine.py"
     "nexadb_client.py"
     "reset_root_password.py"
+    "unified_auth.py"
+    "change_events.py"
 )
 
 for file in "${FILES[@]}"; do
