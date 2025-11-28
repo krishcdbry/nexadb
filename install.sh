@@ -54,7 +54,7 @@ echo -e "\n${BOLD}[1/5] Installing dependencies...${RESET}"
 if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
     sudo apt-get update -qq
     sudo apt-get install -y python3 python3-pip wget curl > /dev/null 2>&1
-elif [ "$OS" = "fedora" ] || [ "$OS" = "rhel" ] || [ "$OS" = "centos" ]; then
+elif [ "$OS" = "fedora" ] || [ "$OS" = "rhel" ] || [ "$OS" = "centos" ] || [ "$OS" = "amzn" ]; then
     sudo dnf install -y python3 python3-pip wget curl > /dev/null 2>&1 || sudo yum install -y python3 python3-pip wget curl > /dev/null 2>&1
 elif [ "$OS" = "arch" ] || [ "$OS" = "manjaro" ]; then
     sudo pacman -Sy --noconfirm python python-pip wget curl > /dev/null 2>&1
