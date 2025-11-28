@@ -68,9 +68,9 @@ elif [ "$OS" = "fedora" ] || [ "$OS" = "rhel" ] || [ "$OS" = "centos" ] || [ "$O
     # Amazon Linux uses yum, not dnf
     # Note: curl-minimal is usually already installed, skip curl to avoid conflicts
     if command -v dnf &> /dev/null; then
-        $SUDO dnf install -y python3 python3-pip wget 2>&1 | grep -v "already installed" || true
+        $SUDO dnf install -y python3 python3-pip wget || echo -e "${YELLOW}Some packages may already be installed${RESET}"
     else
-        $SUDO yum install -y python3 python3-pip wget 2>&1 | grep -v "already installed" || true
+        $SUDO yum install -y python3 python3-pip wget || echo -e "${YELLOW}Some packages may already be installed${RESET}"
     fi
 elif [ "$OS" = "arch" ] || [ "$OS" = "manjaro" ]; then
     echo -e "${CYAN}Installing packages via pacman...${RESET}"
@@ -82,13 +82,28 @@ fi
 echo -e "${GREEN}✓ Dependencies installed${RESET}"
 
 # Install Python dependencies
-echo -e "${CYAN}Installing Python packages (msgpack)...${RESET}"
-if pip3 install --user msgpack 2>&1 | grep -q "Successfully installed\|already satisfied"; then
-    echo -e "${GREEN}✓ msgpack installed${RESET}"
-elif python3 -m pip install --user msgpack 2>&1 | grep -q "Successfully installed\|already satisfied"; then
-    echo -e "${GREEN}✓ msgpack installed${RESET}"
+echo -e "${CYAN}Installing Python packages...${RESET}"
+# Core dependencies: msgpack (binary protocol), sortedcontainers (LSM tree), pybloom_live (bloom filters)
+# Bloom filter dependencies: xxhash, bitarray (required by pybloom_live)
+# Performance: numpy (10x faster vector operations)
+PYTHON_PACKAGES="msgpack sortedcontainers pybloom_live xxhash bitarray numpy"
+
+echo -e "${CYAN}Installing: $PYTHON_PACKAGES${RESET}"
+
+# Try system-wide install first, fall back to user install
+if $SUDO pip3 install $PYTHON_PACKAGES >/dev/null 2>&1; then
+    echo -e "${GREEN}✓ Python packages installed (system-wide)${RESET}"
+elif pip3 install --user $PYTHON_PACKAGES >/dev/null 2>&1; then
+    echo -e "${GREEN}✓ Python packages installed (user)${RESET}"
+    # Ensure user site-packages is in Python path
+    export PYTHONPATH="$HOME/.local/lib/python$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')/site-packages:$PYTHONPATH"
+elif python3 -m pip install --user $PYTHON_PACKAGES >/dev/null 2>&1; then
+    echo -e "${GREEN}✓ Python packages installed (user)${RESET}"
+    export PYTHONPATH="$HOME/.local/lib/python$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')/site-packages:$PYTHONPATH"
 else
-    echo -e "${YELLOW}⚠ msgpack installation may have issues, continuing...${RESET}"
+    echo -e "${RED}✗ Failed to install Python packages${RESET}"
+    echo -e "${YELLOW}Please install manually: pip3 install $PYTHON_PACKAGES${RESET}"
+    exit 1
 fi
 
 # Create installation directory
@@ -111,8 +126,13 @@ FILES=(
     "admin_server.py"
     "veloxdb_core.py"
     "storage_engine.py"
+    "vector_index.py"
+    "toon_format.py"
+    "index_manager.py"
     "nexadb_client.py"
     "reset_root_password.py"
+    "unified_auth.py"
+    "change_events.py"
 )
 
 for file in "${FILES[@]}"; do
@@ -237,13 +257,31 @@ else
     SHELL_RC="$HOME/.profile"
 fi
 
+# Add PATH and PYTHONPATH to shell config
+NEEDS_UPDATE=false
 if ! grep -q "$BIN_DIR" "$SHELL_RC" 2>/dev/null; then
+    NEEDS_UPDATE=true
+fi
+
+if ! grep -q "PYTHONPATH.*\.local.*site-packages" "$SHELL_RC" 2>/dev/null; then
+    NEEDS_UPDATE=true
+fi
+
+if [ "$NEEDS_UPDATE" = true ]; then
     echo "" >> "$SHELL_RC"
     echo "# Added by NexaDB installer" >> "$SHELL_RC"
-    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_RC"
-    echo -e "${GREEN}Added $BIN_DIR to PATH in $SHELL_RC${RESET}"
+
+    if ! grep -q "$BIN_DIR" "$SHELL_RC" 2>/dev/null; then
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_RC"
+    fi
+
+    if ! grep -q "PYTHONPATH.*\.local.*site-packages" "$SHELL_RC" 2>/dev/null; then
+        echo 'export PYTHONPATH="$HOME/.local/lib/python3.9/site-packages:$PYTHONPATH"' >> "$SHELL_RC"
+    fi
+
+    echo -e "${GREEN}Added environment variables to $SHELL_RC${RESET}"
 else
-    echo -e "${CYAN}PATH already configured${RESET}"
+    echo -e "${CYAN}Environment already configured${RESET}"
 fi
 
 # Installation complete
