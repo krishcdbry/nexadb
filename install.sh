@@ -62,18 +62,19 @@ fi
 if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
     echo -e "${CYAN}Installing packages via apt-get...${RESET}"
     $SUDO apt-get update -qq
-    $SUDO apt-get install -y python3 python3-pip wget curl
+    $SUDO apt-get install -y python3 python3-pip wget
 elif [ "$OS" = "fedora" ] || [ "$OS" = "rhel" ] || [ "$OS" = "centos" ] || [ "$OS" = "amzn" ]; then
     echo -e "${CYAN}Installing packages via yum/dnf...${RESET}"
     # Amazon Linux uses yum, not dnf
+    # Note: curl-minimal is usually already installed, skip curl to avoid conflicts
     if command -v dnf &> /dev/null; then
-        $SUDO dnf install -y python3 python3-pip wget curl
+        $SUDO dnf install -y python3 python3-pip wget 2>&1 | grep -v "already installed" || true
     else
-        $SUDO yum install -y python3 python3-pip wget curl
+        $SUDO yum install -y python3 python3-pip wget 2>&1 | grep -v "already installed" || true
     fi
 elif [ "$OS" = "arch" ] || [ "$OS" = "manjaro" ]; then
     echo -e "${CYAN}Installing packages via pacman...${RESET}"
-    $SUDO pacman -Sy --noconfirm python python-pip wget curl
+    $SUDO pacman -Sy --noconfirm python python-pip wget
 else
     echo -e "${YELLOW}Unsupported OS. Attempting to continue...${RESET}"
 fi
