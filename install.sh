@@ -51,20 +51,44 @@ echo -e "${CYAN}Detected OS: $OS${RESET}"
 # Install dependencies
 echo -e "\n${BOLD}[1/5] Installing dependencies...${RESET}"
 
+# Check if we need sudo
+SUDO=""
+if [ "$EUID" -ne 0 ]; then
+    if command -v sudo &> /dev/null; then
+        SUDO="sudo"
+    fi
+fi
+
 if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
-    sudo apt-get update -qq
-    sudo apt-get install -y python3 python3-pip wget curl > /dev/null 2>&1
+    echo -e "${CYAN}Installing packages via apt-get...${RESET}"
+    $SUDO apt-get update -qq
+    $SUDO apt-get install -y python3 python3-pip wget curl
 elif [ "$OS" = "fedora" ] || [ "$OS" = "rhel" ] || [ "$OS" = "centos" ] || [ "$OS" = "amzn" ]; then
-    sudo dnf install -y python3 python3-pip wget curl > /dev/null 2>&1 || sudo yum install -y python3 python3-pip wget curl > /dev/null 2>&1
+    echo -e "${CYAN}Installing packages via yum/dnf...${RESET}"
+    # Amazon Linux uses yum, not dnf
+    if command -v dnf &> /dev/null; then
+        $SUDO dnf install -y python3 python3-pip wget curl
+    else
+        $SUDO yum install -y python3 python3-pip wget curl
+    fi
 elif [ "$OS" = "arch" ] || [ "$OS" = "manjaro" ]; then
-    sudo pacman -Sy --noconfirm python python-pip wget curl > /dev/null 2>&1
+    echo -e "${CYAN}Installing packages via pacman...${RESET}"
+    $SUDO pacman -Sy --noconfirm python python-pip wget curl
 else
     echo -e "${YELLOW}Unsupported OS. Attempting to continue...${RESET}"
 fi
 
+echo -e "${GREEN}✓ Dependencies installed${RESET}"
+
 # Install Python dependencies
-echo -e "${CYAN}Installing Python packages...${RESET}"
-pip3 install --user msgpack > /dev/null 2>&1 || python3 -m pip install --user msgpack > /dev/null 2>&1
+echo -e "${CYAN}Installing Python packages (msgpack)...${RESET}"
+if pip3 install --user msgpack 2>&1 | grep -q "Successfully installed\|already satisfied"; then
+    echo -e "${GREEN}✓ msgpack installed${RESET}"
+elif python3 -m pip install --user msgpack 2>&1 | grep -q "Successfully installed\|already satisfied"; then
+    echo -e "${GREEN}✓ msgpack installed${RESET}"
+else
+    echo -e "${YELLOW}⚠ msgpack installation may have issues, continuing...${RESET}"
+fi
 
 # Create installation directory
 INSTALL_DIR="$HOME/.nexadb"
