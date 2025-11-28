@@ -68,9 +68,9 @@ elif [ "$OS" = "fedora" ] || [ "$OS" = "rhel" ] || [ "$OS" = "centos" ] || [ "$O
     # Amazon Linux uses yum, not dnf
     # Note: curl-minimal is usually already installed, skip curl to avoid conflicts
     if command -v dnf &> /dev/null; then
-        $SUDO dnf install -y python3 python3-pip wget 2>&1 | grep -v "already installed" || true
+        $SUDO dnf install -y python3 python3-pip wget || echo -e "${YELLOW}Some packages may already be installed${RESET}"
     else
-        $SUDO yum install -y python3 python3-pip wget 2>&1 | grep -v "already installed" || true
+        $SUDO yum install -y python3 python3-pip wget || echo -e "${YELLOW}Some packages may already be installed${RESET}"
     fi
 elif [ "$OS" = "arch" ] || [ "$OS" = "manjaro" ]; then
     echo -e "${CYAN}Installing packages via pacman...${RESET}"
