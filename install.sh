@@ -82,13 +82,16 @@ fi
 echo -e "${GREEN}✓ Dependencies installed${RESET}"
 
 # Install Python dependencies
-echo -e "${CYAN}Installing Python packages (msgpack)...${RESET}"
-if pip3 install --user msgpack 2>&1 | grep -q "Successfully installed\|already satisfied"; then
-    echo -e "${GREEN}✓ msgpack installed${RESET}"
-elif python3 -m pip install --user msgpack 2>&1 | grep -q "Successfully installed\|already satisfied"; then
-    echo -e "${GREEN}✓ msgpack installed${RESET}"
+echo -e "${CYAN}Installing Python packages...${RESET}"
+PYTHON_PACKAGES="msgpack sortedcontainers pybloom_live xxhash bitarray"
+
+echo -e "${CYAN}Installing: $PYTHON_PACKAGES${RESET}"
+if pip3 install --user $PYTHON_PACKAGES 2>&1 | grep -q "Successfully installed\|already satisfied"; then
+    echo -e "${GREEN}✓ Python packages installed${RESET}"
+elif python3 -m pip install --user $PYTHON_PACKAGES 2>&1 | grep -q "Successfully installed\|already satisfied"; then
+    echo -e "${GREEN}✓ Python packages installed${RESET}"
 else
-    echo -e "${YELLOW}⚠ msgpack installation may have issues, continuing...${RESET}"
+    echo -e "${YELLOW}⚠ Some packages may have issues, continuing...${RESET}"
 fi
 
 # Create installation directory
