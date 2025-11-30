@@ -14,6 +14,15 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 RESET='\033[0m'
 
+# Fetch latest version from GitHub API
+echo -e "${CYAN}Fetching latest NexaDB version...${RESET}"
+VERSION=$(curl -s https://api.github.com/repos/krishcdbry/nexadb/releases/latest | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/' 2>/dev/null)
+if [ -z "$VERSION" ]; then
+    VERSION="3.0.5"  # Fallback version
+    echo -e "${YELLOW}Could not fetch latest version, using fallback: v${VERSION}${RESET}"
+fi
+VERSION_TAG="v${VERSION}"
+
 # Banner
 echo -e "${CYAN}${BOLD}"
 echo "╔═══════════════════════════════════════════════════════════════════════╗"
@@ -26,7 +35,7 @@ echo "║     ██║ ╚████║███████╗██╔╝ �
 echo "║     ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚═════╝               ║"
 echo "║                                                                       ║"
 echo "║                   Database for AI Developers                         ║"
-echo "║                          v3.0.5                                       ║"
+echo "║                          ${VERSION_TAG}                                       ║"
 echo "║                                                                       ║"
 echo "╚═══════════════════════════════════════════════════════════════════════╝"
 echo -e "${RESET}"
@@ -140,8 +149,11 @@ mkdir -p "$BIN_DIR"
 mkdir -p "$DATA_DIR"
 
 # Download NexaDB files
-echo -e "\n${BOLD}[3/5] Downloading NexaDB v3.0.5...${RESET}"
+echo -e "\n${BOLD}[3/5] Downloading NexaDB ${VERSION_TAG}...${RESET}"
 cd "$INSTALL_DIR"
+
+# Base URL for downloads (uses version tag)
+BASE_URL="https://raw.githubusercontent.com/krishcdbry/nexadb/${VERSION_TAG}"
 
 FILES=(
     "nexadb_server.py"
@@ -160,7 +172,7 @@ FILES=(
 
 for file in "${FILES[@]}"; do
     echo -e "${CYAN}Downloading $file...${RESET}"
-    curl -fsSL "https://raw.githubusercontent.com/krishcdbry/nexadb/main/$file" -o "$file"
+    curl -fsSL "${BASE_URL}/$file" -o "$file"
 done
 
 # Download admin panel
@@ -168,18 +180,21 @@ echo -e "${CYAN}Downloading admin panel...${RESET}"
 mkdir -p admin_panel/css admin_panel/js
 
 # Download HTML files
-curl -fsSL "https://raw.githubusercontent.com/krishcdbry/nexadb/main/admin_panel/index.html" -o admin_panel/index.html
-curl -fsSL "https://raw.githubusercontent.com/krishcdbry/nexadb/main/admin_panel/login.html" -o admin_panel/login.html
+curl -fsSL "${BASE_URL}/admin_panel/index.html" -o admin_panel/index.html
+curl -fsSL "${BASE_URL}/admin_panel/login.html" -o admin_panel/login.html
 
 # Download CSS
-curl -fsSL "https://raw.githubusercontent.com/krishcdbry/nexadb/main/admin_panel/css/styles.css" -o admin_panel/css/styles.css 2>/dev/null || true
+curl -fsSL "${BASE_URL}/admin_panel/css/styles.css" -o admin_panel/css/styles.css 2>/dev/null || true
 
 # Download JS
-curl -fsSL "https://raw.githubusercontent.com/krishcdbry/nexadb/main/admin_panel/js/app.js" -o admin_panel/js/app.js 2>/dev/null || true
-curl -fsSL "https://raw.githubusercontent.com/krishcdbry/nexadb/main/admin_panel/js/auth.js" -o admin_panel/js/auth.js 2>/dev/null || true
+curl -fsSL "${BASE_URL}/admin_panel/js/app.js" -o admin_panel/js/app.js 2>/dev/null || true
+curl -fsSL "${BASE_URL}/admin_panel/js/auth.js" -o admin_panel/js/auth.js 2>/dev/null || true
 
 # Create executable wrapper scripts
 echo -e "\n${BOLD}[4/5] Creating command-line tools...${RESET}"
+
+# Save version info for the wrapper
+echo "$VERSION_TAG" > "$INSTALL_DIR/.version"
 
 # Main nexadb command
 cat > "$BIN_DIR/nexadb" <<'EOF'
@@ -207,7 +222,11 @@ case "$1" in
     python3 reset_root_password.py --data-dir "$DATA_DIR" "$@"
     ;;
   --version|-v)
-    echo "NexaDB v3.0.5"
+    if [ -f "$NEXADB_DIR/.version" ]; then
+        echo "NexaDB $(cat $NEXADB_DIR/.version)"
+    else
+        echo "NexaDB (version unknown)"
+    fi
     ;;
   --help|-h|help|*)
     cat <<HELP
