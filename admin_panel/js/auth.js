@@ -1,8 +1,8 @@
 // Authentication Module for NexaDB Admin Panel
 class AuthManager {
     constructor() {
-        this.ADMIN_BASE = 'http://localhost:9999';  // Admin server with session auth
-        this.API_BASE = 'http://localhost:6969';     // REST API server
+        this.ADMIN_BASE = window.location.origin;   // Admin server with session auth
+        this.API_BASE = window.location.origin;     // Use same origin (admin server proxies to binary)
         this.session = this.loadSession();
     }
 

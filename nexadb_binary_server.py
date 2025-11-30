@@ -701,6 +701,13 @@ class NexaDBBinaryServer:
         # Get database
         db = self.db.database(database_name)
 
+        # NEW v3.0.5: Register collection metadata so it appears in list_collections
+        # Check if document has vector field to determine dimensions
+        vector_dimensions = None
+        if 'vector' in document and isinstance(document['vector'], list):
+            vector_dimensions = len(document['vector'])
+        db.register_collection(collection_name, vector_dimensions)
+
         # Check if document has vector field for automatic indexing
         if 'vector' in document and isinstance(document['vector'], list):
             # Auto-index vector for similarity search

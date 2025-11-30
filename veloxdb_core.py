@@ -1059,6 +1059,29 @@ class Database:
             )
         return self.vector_collections[key]
 
+    def register_collection(self, name: str, vector_dimensions: int = None) -> Dict[str, Any]:
+        """
+        Register a collection by storing its metadata.
+        This ensures the collection appears in list_collections even when empty.
+
+        NEW v3.0.5: Explicit collection registration for empty collection support.
+        """
+        metadata_key = f"db:{self.name}:collection:{name}:_meta"
+        existing = self.engine.get(metadata_key)
+
+        if existing:
+            # Collection already registered
+            return json.loads(existing.decode('utf-8'))
+
+        metadata = {
+            'name': name,
+            'database': self.name,
+            'created_at': time.time(),
+            'vector_dimensions': vector_dimensions
+        }
+        self.engine.put(metadata_key, json.dumps(metadata).encode('utf-8'))
+        return metadata
+
     def list_collections(self) -> List[str]:
         """List all collections in this database"""
         collection_names = set()
@@ -1072,11 +1095,22 @@ class Database:
             # Extract collection name from key format: db:{database}:collection:{name}:...
             parts = key.split(':')
             if len(parts) >= 4 and parts[0] == 'db' and parts[2] == 'collection':
-                collection_names.add(parts[3])
+                # Skip internal metadata key suffix
+                if parts[3] != '_meta':
+                    collection_names.add(parts[3])
 
-        # FIX v3.0.1: Don't include in-memory collections that have no documents
-        # Only return collections that actually exist in storage
-        # collection_names.update(self.collections.keys())
+        # FIX v3.0.5: Also include registered collections (even if empty)
+        # Scan for collection metadata keys: db:{database}:collection:{name}:_meta
+        meta_prefix = f"db:{self.name}:collection:"
+        meta_suffix = ":_meta"
+        meta_keys = self.engine.range_scan(meta_prefix, meta_prefix + '\xff')
+
+        for key, _ in meta_keys:
+            if key.endswith(meta_suffix):
+                # Extract collection name from: db:{database}:collection:{name}:_meta
+                parts = key.split(':')
+                if len(parts) >= 4:
+                    collection_names.add(parts[3])
 
         return sorted(list(collection_names))
 

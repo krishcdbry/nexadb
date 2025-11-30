@@ -235,6 +235,26 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
             # GET /api/users/{username}
             username = parsed_path.path.split('/')[3]
             self.handle_get_user(username)
+        # Status endpoint (REST API compatible) - NEW v3.0.5
+        elif parsed_path.path == '/status':
+            self.handle_rest_status()
+        # REST API compatible routes (proxy to binary server) - NEW v3.0.5
+        # These allow admin panel to use same paths as REST API
+        elif parsed_path.path.startswith('/collections/'):
+            # GET /collections/{name} - list documents
+            parts = parsed_path.path.strip('/').split('/')
+            if len(parts) >= 2:
+                collection_name = parts[1]
+                query_params = parse_qs(parsed_path.query)
+                database = query_params.get('database', ['default'])[0]
+                self.handle_rest_get_documents(collection_name, database, query_params)
+            else:
+                self.send_error_response(400, 'Invalid collection path')
+        elif parsed_path.path == '/collections':
+            # GET /collections - list all collections
+            query_params = parse_qs(parsed_path.query)
+            database = query_params.get('database', ['default'])[0]
+            self.handle_rest_list_collections(database)
         else:
             # Handle .js files explicitly to ensure correct Content-Type
             if parsed_path.path.endswith('.js'):
@@ -301,6 +321,16 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_regenerate_api_key()
         elif parsed_path.path == '/api/users/grant-database-permission':
             self.handle_grant_database_permission()
+        # REST API compatible route for collection creation - NEW v3.0.5
+        elif parsed_path.path.startswith('/collections/'):
+            parts = parsed_path.path.strip('/').split('/')
+            if len(parts) >= 2:
+                collection_name = parts[1]
+                query_params = parse_qs(parsed_path.query)
+                database = query_params.get('database', ['default'])[0]
+                self.handle_rest_insert_document(collection_name, database)
+            else:
+                self.send_error(400, "Invalid collection path")
         else:
             self.send_error(404, "Endpoint not found")
 
@@ -308,12 +338,19 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
         """Handle DELETE requests."""
         parsed_path = urlparse(self.path)
 
-        # Delete document
+        # Delete document - /api/databases/{db}/collections/{collection}/documents/{id}
         if parsed_path.path.startswith('/api/databases/') and '/documents/' in parsed_path.path:
             parts = parsed_path.path.split('/')
             database_name = parts[3]
             collection_name = parts[5]
             document_id = parts[7]
+            self.handle_delete_document(database_name, collection_name, document_id)
+        # Delete document - /databases/{db}/collections/{collection}/documents/{id} (without /api prefix) - NEW v3.0.5
+        elif parsed_path.path.startswith('/databases/') and '/documents/' in parsed_path.path:
+            parts = parsed_path.path.split('/')
+            database_name = parts[2]
+            collection_name = parts[4]
+            document_id = parts[6]
             self.handle_delete_document(database_name, collection_name, document_id)
         # Delete collection
         elif parsed_path.path.startswith('/api/databases/') and '/collections/' in parsed_path.path:
@@ -325,6 +362,17 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
         elif parsed_path.path.startswith('/api/databases/'):
             database_name = parsed_path.path.split('/')[3]
             self.handle_delete_database(database_name)
+        # REST API compatible route for document deletion - NEW v3.0.5
+        elif parsed_path.path.startswith('/collections/'):
+            parts = parsed_path.path.strip('/').split('/')
+            if len(parts) >= 3:
+                collection_name = parts[1]
+                document_id = parts[2]
+                query_params = parse_qs(parsed_path.query)
+                database = query_params.get('database', ['default'])[0]
+                self.handle_rest_delete_document(collection_name, document_id, database)
+            else:
+                self.send_error(400, "Invalid path - expected /collections/{name}/{id}")
         else:
             self.send_error(404, "Endpoint not found")
 
@@ -1512,6 +1560,187 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps({
                 'status': 'error',
                 'error': f'Server error: {str(e)}'
+            }).encode())
+
+    # ============================================================
+    # REST API Compatible Handlers (v3.0.5)
+    # These allow admin panel to use same paths as REST API
+    # ============================================================
+
+    def handle_rest_status(self):
+        """Handle GET /status - server status (REST API compatible)."""
+        try:
+            from nexaclient import NexaClient
+
+            # Connect to binary server and get status
+            with NexaClient(host='localhost', port=6970) as db_client:
+                # Get databases list
+                databases = db_client.list_databases()
+                db_list = databases if isinstance(databases, list) else databases.get('databases', [])
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'status': 'connected',
+                    'version': '3.0.5',
+                    'server': 'NexaDB',
+                    'binary_port': 6970,
+                    'rest_port': 6969,
+                    'admin_port': 9999,
+                    'databases': db_list,
+                    'database_count': len(db_list)
+                }).encode())
+
+        except Exception as e:
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'disconnected',
+                'version': '3.0.5',
+                'error': str(e)
+            }).encode())
+
+    def handle_rest_insert_document(self, collection_name, database):
+        """Handle POST /collections/{name}?database={db} - insert document (REST API compatible)."""
+        try:
+            from nexaclient import NexaClient
+
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            doc = json.loads(body)
+
+            # Connect to binary server and insert
+            with NexaClient(host='localhost', port=6970) as db_client:
+                result = db_client.create(collection_name, doc, database=database)
+                doc_id = result.get('document_id')
+
+                self.send_response(201)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'status': 'success',
+                    'collection': collection_name,
+                    'document_id': doc_id,
+                    'message': 'Document inserted'
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'error',
+                'error': str(e)
+            }).encode())
+
+    def handle_rest_get_documents(self, collection_name, database, query_params):
+        """Handle GET /collections/{name}?database={db} - list documents (REST API compatible)."""
+        try:
+            from nexaclient import NexaClient
+
+            # Parse query parameters
+            query = query_params.get('query', ['{}'])[0]
+            limit = int(query_params.get('limit', [100])[0])
+            skip = int(query_params.get('skip', [0])[0])
+
+            # Connect to binary server and query
+            with NexaClient(host='localhost', port=6970) as db_client:
+                result = db_client.query(collection_name, json.loads(query), database=database)
+                documents = result if isinstance(result, list) else result.get('documents', [])
+
+                # Apply pagination
+                paginated_docs = documents[skip:skip + limit]
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'status': 'success',
+                    'collection': collection_name,
+                    'documents': paginated_docs,
+                    'count': len(paginated_docs),
+                    'total': len(documents)
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'error',
+                'error': str(e)
+            }).encode())
+
+    def handle_rest_list_collections(self, database):
+        """Handle GET /collections?database={db} - list collections (REST API compatible)."""
+        try:
+            from nexaclient import NexaClient
+
+            # Connect to binary server and list collections
+            with NexaClient(host='localhost', port=6970) as db_client:
+                result = db_client.list_collections(database=database)
+                collections = result if isinstance(result, list) else result.get('collections', [])
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'status': 'success',
+                    'collections': collections,
+                    'count': len(collections)
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'error',
+                'error': str(e)
+            }).encode())
+
+    def handle_rest_delete_document(self, collection_name, document_id, database):
+        """Handle DELETE /collections/{name}/{id}?database={db} - delete document (REST API compatible)."""
+        try:
+            from nexaclient import NexaClient
+
+            # Connect to binary server and delete
+            with NexaClient(host='localhost', port=6970) as db_client:
+                result = db_client.delete(collection_name, document_id, database=database)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'status': 'success',
+                    'message': f'Document {document_id} deleted'
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'error',
+                'error': str(e)
             }).encode())
 
     def log_message(self, format, *args):

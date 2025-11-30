@@ -47,7 +47,7 @@
             currentView: 'dashboard',
             currentCollection: null,
             collections: [],
-            baseUrl: 'http://localhost:6969',
+            baseUrl: window.location.origin,  // Use same origin as admin panel (port 9999)
             currentPage: 1,
             currentUser: auth.getCurrentUser(),
             pageSize: 50,
