@@ -210,6 +210,10 @@ class NexaDBBinaryServer:
         print(f"[INIT] Initializing NexaDB at {data_dir}")
         self.db = VeloxDB(data_dir)
 
+        # NEW v3.0.5: Ensure 'default' database exists for fresh users
+        self.db.database('default')
+        print(f"[INIT] Default database initialized")
+
         # Initialize unified authentication (username/password + API keys)
         print(f"[SECURITY] Initializing unified authentication")
         self.auth = UnifiedAuthManager(data_dir)

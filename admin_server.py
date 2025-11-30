@@ -858,20 +858,36 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
     def handle_get_database_stats(self, database_name):
         """Handle GET /api/databases/{name}/stats - get database statistics (NEW v3.0.0)."""
         try:
-            # For now, return simple stats without querying (to avoid protocol issues)
-            # In production, this would query the actual database
-            stats = {
-                'database': database_name,
-                'collections_count': 0,
-                'documents_count': 0
-            }
+            from nexaclient import NexaClient
+
+            # Connect to binary server and get real stats
+            with NexaClient(host='localhost', port=6970) as db:
+                collections = db.list_collections(database=database_name)
+                collections_count = len(collections)
+
+                # Count documents in each collection
+                documents_count = 0
+                for collection in collections:
+                    try:
+                        docs = db.query(collection, {}, database=database_name, limit=0)
+                        # Query with limit=0 should return count or empty list
+                        # Let's count manually with a high limit
+                        docs = db.query(collection, {}, database=database_name, limit=100000)
+                        documents_count += len(docs)
+                    except:
+                        pass
+
+                stats = {
+                    'database': database_name,
+                    'collections_count': collections_count,
+                    'documents_count': documents_count
+                }
 
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
 
-            # Test expects either 'collections_count' at top level or 'stats' wrapper
             self.wfile.write(json.dumps({
                 'database': database_name,
                 'collections_count': stats.get('collections_count', 0),
