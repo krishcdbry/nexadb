@@ -1,11 +1,12 @@
 [package]
 name = "nexadb-cli"
-version = "2.3.0"
+version = "3.0.0"
 edition = "2021"
-authors = ["NexaDB Team <team@nexadb.dev>"]
+authors = ["Krish <krishcdbry@gmail.com>"]
 description = "Interactive CLI for NexaDB - The database for AI developers"
 license = "MIT"
 repository = "https://github.com/krishcdbry/nexadb"
+homepage = "https://nexadb.io"
 
 [dependencies]
 clap = { version = "4.5", features = ["derive", "color"] }
