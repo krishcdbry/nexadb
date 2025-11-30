@@ -102,16 +102,24 @@ PYTHON_PACKAGES="msgpack sortedcontainers pybloom_live xxhash bitarray numpy nex
 
 echo -e "${CYAN}Installing: $PYTHON_PACKAGES${RESET}"
 
-# Try system-wide install first, fall back to user install
-if $SUDO pip3 install $PYTHON_PACKAGES >/dev/null 2>&1; then
+# Install packages (macOS: user install only, Linux: try system first)
+if [ "$OS" = "macos" ]; then
+    # macOS: always use user install (no sudo for pip)
+    if pip3 install --user $PYTHON_PACKAGES 2>&1; then
+        echo -e "${GREEN}✓ Python packages installed${RESET}"
+    elif python3 -m pip install --user $PYTHON_PACKAGES 2>&1; then
+        echo -e "${GREEN}✓ Python packages installed${RESET}"
+    else
+        echo -e "${RED}✗ Failed to install Python packages${RESET}"
+        echo -e "${YELLOW}Please install manually: pip3 install --user $PYTHON_PACKAGES${RESET}"
+        exit 1
+    fi
+elif $SUDO pip3 install $PYTHON_PACKAGES >/dev/null 2>&1; then
     echo -e "${GREEN}✓ Python packages installed (system-wide)${RESET}"
 elif pip3 install --user $PYTHON_PACKAGES >/dev/null 2>&1; then
     echo -e "${GREEN}✓ Python packages installed (user)${RESET}"
-    # Ensure user site-packages is in Python path
-    export PYTHONPATH="$HOME/.local/lib/python$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')/site-packages:$PYTHONPATH"
 elif python3 -m pip install --user $PYTHON_PACKAGES >/dev/null 2>&1; then
     echo -e "${GREEN}✓ Python packages installed (user)${RESET}"
-    export PYTHONPATH="$HOME/.local/lib/python$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')/site-packages:$PYTHONPATH"
 else
     echo -e "${RED}✗ Failed to install Python packages${RESET}"
     echo -e "${YELLOW}Please install manually: pip3 install $PYTHON_PACKAGES${RESET}"
