@@ -109,6 +109,15 @@ class NexaDBBinaryProtocol:
     MSG_SUBSCRIBE_CHANGES = 0x30  # Subscribe to change stream
     MSG_UNSUBSCRIBE_CHANGES = 0x31  # Unsubscribe from change stream
 
+    # NEW v3.0.0: Database operations
+    MSG_LIST_DATABASES = 0x40  # List all databases
+    MSG_DROP_DATABASE = 0x42  # Drop a database
+    MSG_BUILD_HNSW_INDEX = 0x45  # Build HNSW index for vector collection
+
+    # NEW v3.0.0: MongoDB import
+    MSG_IMPORT_MONGODB_DB = 0x50  # Import entire MongoDB database
+    MSG_IMPORT_MONGODB_COLLECTION = 0x51  # Import single MongoDB collection
+
     # Server → Client response types
     MSG_SUCCESS = 0x81
     MSG_ERROR = 0x82
@@ -420,6 +429,44 @@ class NexaDBBinaryServer:
         """Send not found response."""
         self._send_message(sock, NexaDBBinaryProtocol.MSG_NOT_FOUND, {'error': 'Not found'})
 
+    def _check_database_permission(self, address: tuple, database: str, required_permission: str) -> bool:
+        """
+        Check if user has required permission for a database (v3.0.0).
+
+        Permission hierarchy: admin > write > read > guest
+
+        Args:
+            address: Client address (to get session)
+            database: Database name
+            required_permission: Required permission level (admin, write, read, guest)
+
+        Returns:
+            True if user has permission, False otherwise
+        """
+        with self.sessions_lock:
+            session = self.sessions.get(address)
+            if not session:
+                return False
+
+            # Admin role has access to all databases
+            if session['role'] == 'admin':
+                return True
+
+            # Check database-specific permissions
+            db_permissions = session.get('database_permissions', {})
+
+            # If no specific permission for this database, deny access
+            if database not in db_permissions:
+                return False
+
+            # Permission hierarchy
+            permission_levels = {'guest': 1, 'read': 2, 'write': 3, 'admin': 4}
+
+            user_level = permission_levels.get(db_permissions[database], 0)
+            required_level = permission_levels.get(required_permission, 0)
+
+            return user_level >= required_level
+
     def _process_message(self, sock: socket.socket, msg_type: int, data: Dict[str, Any], address: tuple):
         """
         Process incoming message and send response.
@@ -444,31 +491,31 @@ class NexaDBBinaryServer:
 
             if msg_type == NexaDBBinaryProtocol.MSG_CREATE:
                 # CREATE - Insert document
-                self._handle_create(sock, data)
+                self._handle_create(sock, data, address)
 
             elif msg_type == NexaDBBinaryProtocol.MSG_READ:
                 # READ - Get document by key
-                self._handle_read(sock, data)
+                self._handle_read(sock, data, address)
 
             elif msg_type == NexaDBBinaryProtocol.MSG_UPDATE:
                 # UPDATE - Update document
-                self._handle_update(sock, data)
+                self._handle_update(sock, data, address)
 
             elif msg_type == NexaDBBinaryProtocol.MSG_DELETE:
                 # DELETE - Delete document
-                self._handle_delete(sock, data)
+                self._handle_delete(sock, data, address)
 
             elif msg_type == NexaDBBinaryProtocol.MSG_QUERY:
                 # QUERY - Query with filters
-                self._handle_query(sock, data)
+                self._handle_query(sock, data, address)
 
             elif msg_type == NexaDBBinaryProtocol.MSG_VECTOR_SEARCH:
                 # VECTOR_SEARCH - Vector similarity search
-                self._handle_vector_search(sock, data)
+                self._handle_vector_search(sock, data, address)
 
             elif msg_type == NexaDBBinaryProtocol.MSG_BATCH_WRITE:
                 # BATCH_WRITE - Bulk insert
-                self._handle_batch_write(sock, data)
+                self._handle_batch_write(sock, data, address)
 
             elif msg_type == NexaDBBinaryProtocol.MSG_PING:
                 # PING - Keep-alive
@@ -509,15 +556,15 @@ class NexaDBBinaryServer:
 
             elif msg_type == NexaDBBinaryProtocol.MSG_LIST_COLLECTIONS:
                 # LIST_COLLECTIONS - List all collections
-                self._handle_list_collections(sock)
+                self._handle_list_collections(sock, data, address)
 
             elif msg_type == NexaDBBinaryProtocol.MSG_DROP_COLLECTION:
                 # DROP_COLLECTION - Drop a collection
-                self._handle_drop_collection(sock, data)
+                self._handle_drop_collection(sock, data, address)
 
             elif msg_type == NexaDBBinaryProtocol.MSG_GET_VECTORS:
                 # GET_VECTORS - Get vector statistics
-                self._handle_get_vectors(sock)
+                self._handle_get_vectors(sock, data)
 
             elif msg_type == NexaDBBinaryProtocol.MSG_SUBSCRIBE_CHANGES:
                 # SUBSCRIBE_CHANGES - Subscribe to change stream
@@ -526,6 +573,26 @@ class NexaDBBinaryServer:
             elif msg_type == NexaDBBinaryProtocol.MSG_UNSUBSCRIBE_CHANGES:
                 # UNSUBSCRIBE_CHANGES - Unsubscribe from change stream
                 self._handle_unsubscribe_changes(sock, data, address)
+
+            elif msg_type == NexaDBBinaryProtocol.MSG_LIST_DATABASES:
+                # LIST_DATABASES - List all databases (NEW v3.0.0)
+                self._handle_list_databases(sock)
+
+            elif msg_type == NexaDBBinaryProtocol.MSG_DROP_DATABASE:
+                # DROP_DATABASE - Drop a database (NEW v3.0.0)
+                self._handle_drop_database(sock, data)
+
+            elif msg_type == NexaDBBinaryProtocol.MSG_IMPORT_MONGODB_DB:
+                # IMPORT_MONGODB_DB - Import entire MongoDB database (NEW v3.0.0)
+                self._handle_import_mongodb_database(sock, data)
+
+            elif msg_type == NexaDBBinaryProtocol.MSG_IMPORT_MONGODB_COLLECTION:
+                # IMPORT_MONGODB_COLLECTION - Import single collection (NEW v3.0.0)
+                self._handle_import_mongodb_collection(sock, data)
+
+            elif msg_type == NexaDBBinaryProtocol.MSG_BUILD_HNSW_INDEX:
+                # BUILD_HNSW_INDEX - Build/rebuild HNSW index for vector collection (NEW v3.0.0)
+                self._handle_build_hnsw_index(sock, data, address)
 
             else:
                 self._send_error(sock, f"Unknown message type: {msg_type}")
@@ -564,11 +631,16 @@ class NexaDBBinaryServer:
                 self.stats['auth_failures'] += 1
             return
 
+        # Get user's full info including database permissions (v3.0.0)
+        user_full = self.auth.get_user(user_info['username'])
+        database_permissions = user_full.get('database_permissions', {}) if user_full else {}
+
         # Store session
         with self.sessions_lock:
             self.sessions[address] = {
                 'username': user_info['username'],
                 'role': user_info['role'],
+                'database_permissions': database_permissions,  # NEW v3.0.0
                 'authenticated_at': time.time()
             }
 
@@ -583,8 +655,37 @@ class NexaDBBinaryServer:
             'role': user_info['role']
         })
 
-    def _handle_create(self, sock: socket.socket, data: Dict[str, Any]):
+    def _handle_create(self, sock: socket.socket, data: Dict[str, Any], address: tuple = None):
         """Handle CREATE message."""
+        # NEW v3.0.0: Check if this is database creation
+        if data.get('create_database'):
+            database_name = data.get('database')
+
+            if not database_name:
+                self._send_error(sock, "Missing 'database' field")
+                return
+
+            # Check if current user is admin
+            with self.sessions_lock:
+                session = self.sessions.get(address)
+                if not session or session['role'] != 'admin':
+                    self._send_error(sock, "Permission denied. Only admins can create databases.")
+                    return
+
+            # Database is created implicitly when first accessed
+            # Just verify it by accessing it
+            db = self.db.database(database_name)
+
+            print(f"[DATABASE] Admin '{session['username']}' created database '{database_name}'")
+
+            self._send_success(sock, {
+                'database': database_name,
+                'message': 'Database created'
+            })
+            return
+
+        # Regular document creation
+        database_name = data.get('database', 'default')  # NEW v3.0.0: Database support
         collection_name = data.get('collection')
         document = data.get('data')
 
@@ -592,29 +693,78 @@ class NexaDBBinaryServer:
             self._send_error(sock, "Missing 'collection' or 'data' field")
             return
 
+        # NEW v3.0.0: Check database permission
+        if address and not self._check_database_permission(address, database_name, 'write'):
+            self._send_error(sock, f"Permission denied: You don't have 'write' access to database '{database_name}'")
+            return
+
+        # Get database
+        db = self.db.database(database_name)
+
         # Check if document has vector field for automatic indexing
         if 'vector' in document and isinstance(document['vector'], list):
             # Auto-index vector for similarity search
             vector = document['vector']
             dimensions = len(vector)
 
+            # Validate vector dimensions against collection metadata
+            # First check if collection has a marker with dimensions spec
+            collection = db.collection(collection_name)
+            all_docs = collection.find({'_nexadb_collection_marker': True}, limit=1)
+
+            expected_dimensions = None
+            if all_docs:
+                marker = all_docs[0]
+                if '_vector_dimensions' in marker:
+                    expected_dimensions = marker['_vector_dimensions']
+
+            # If no marker dimensions, check against existing vectors
+            if expected_dimensions is None:
+                vector_prefix = f"db:{database_name}:vector:{collection_name}:"
+                existing_vectors_iter = self.db.engine.range_scan(vector_prefix, vector_prefix + '\xff')
+
+                # Get first vector if it exists
+                first_vector = None
+                try:
+                    for vec in existing_vectors_iter:
+                        first_vector = vec
+                        break  # Only get the first one
+                except:
+                    pass
+
+                if first_vector:
+                    # Collection has vectors, use their dimensions
+                    try:
+                        import json
+                        existing_vector = json.loads(first_vector[1].decode('utf-8'))
+                        expected_dimensions = len(existing_vector)
+                    except:
+                        pass  # If we can't decode, proceed
+
+            # Validate dimensions if we have expected dimensions
+            if expected_dimensions is not None and dimensions != expected_dimensions:
+                self._send_error(sock, f"Vector dimension mismatch: collection expects {expected_dimensions} dimensions, got {dimensions}")
+                return
+
             # Insert via vector collection (indexes vector automatically)
-            vector_collection = self.db.vector_collection(collection_name, dimensions)
+            vector_collection = db.vector_collection(collection_name, dimensions)
             doc_data = {k: v for k, v in document.items() if k != 'vector'}
             doc_id = vector_collection.insert(doc_data, vector)
         else:
             # Regular insert (no vector)
-            collection = self.db.collection(collection_name)
+            collection = db.collection(collection_name)
             doc_id = collection.insert(document)
 
         self._send_success(sock, {
+            'database': database_name,
             'collection': collection_name,
             'document_id': doc_id,
             'message': 'Document inserted'
         })
 
-    def _handle_read(self, sock: socket.socket, data: Dict[str, Any]):
+    def _handle_read(self, sock: socket.socket, data: Dict[str, Any], address: tuple = None):
         """Handle READ message."""
+        database_name = data.get('database', 'default')  # NEW v3.0.0: Database support
         collection_name = data.get('collection')
         doc_id = data.get('key')
 
@@ -622,20 +772,28 @@ class NexaDBBinaryServer:
             self._send_error(sock, "Missing 'collection' or 'key' field")
             return
 
-        # Get document
-        collection = self.db.collection(collection_name)
+        # NEW v3.0.0: Check database permission
+        if address and not self._check_database_permission(address, database_name, 'read'):
+            self._send_error(sock, f"Permission denied: You don't have 'read' access to database '{database_name}'")
+            return
+
+        # Get database and collection
+        db = self.db.database(database_name)
+        collection = db.collection(collection_name)
         document = collection.find_by_id(doc_id)
 
         if document:
             self._send_success(sock, {
+                'database': database_name,
                 'collection': collection_name,
                 'document': document
             })
         else:
             self._send_not_found(sock)
 
-    def _handle_update(self, sock: socket.socket, data: Dict[str, Any]):
+    def _handle_update(self, sock: socket.socket, data: Dict[str, Any], address: tuple = None):
         """Handle UPDATE message."""
+        database_name = data.get('database', 'default')  # NEW v3.0.0: Database support
         collection_name = data.get('collection')
         doc_id = data.get('key')
         updates = data.get('updates')
@@ -644,12 +802,19 @@ class NexaDBBinaryServer:
             self._send_error(sock, "Missing 'collection', 'key', or 'updates' field")
             return
 
-        # Update document
-        collection = self.db.collection(collection_name)
+        # NEW v3.0.0: Check database permission
+        if address and not self._check_database_permission(address, database_name, 'write'):
+            self._send_error(sock, f"Permission denied: You don't have 'write' access to database '{database_name}'")
+            return
+
+        # Get database and collection
+        db = self.db.database(database_name)
+        collection = db.collection(collection_name)
         success = collection.update(doc_id, updates)
 
         if success:
             self._send_success(sock, {
+                'database': database_name,
                 'collection': collection_name,
                 'document_id': doc_id,
                 'message': 'Document updated'
@@ -657,8 +822,9 @@ class NexaDBBinaryServer:
         else:
             self._send_not_found(sock)
 
-    def _handle_delete(self, sock: socket.socket, data: Dict[str, Any]):
+    def _handle_delete(self, sock: socket.socket, data: Dict[str, Any], address: tuple = None):
         """Handle DELETE message."""
+        database_name = data.get('database', 'default')  # NEW v3.0.0: Database support
         collection_name = data.get('collection')
         doc_id = data.get('key')
 
@@ -666,12 +832,19 @@ class NexaDBBinaryServer:
             self._send_error(sock, "Missing 'collection' or 'key' field")
             return
 
-        # Delete document
-        collection = self.db.collection(collection_name)
+        # NEW v3.0.0: Check database permission
+        if address and not self._check_database_permission(address, database_name, 'write'):
+            self._send_error(sock, f"Permission denied: You don't have 'write' access to database '{database_name}'")
+            return
+
+        # Get database and collection
+        db = self.db.database(database_name)
+        collection = db.collection(collection_name)
         success = collection.delete(doc_id)
 
         if success:
             self._send_success(sock, {
+                'database': database_name,
                 'collection': collection_name,
                 'document_id': doc_id,
                 'message': 'Document deleted'
@@ -679,8 +852,9 @@ class NexaDBBinaryServer:
         else:
             self._send_not_found(sock)
 
-    def _handle_query(self, sock: socket.socket, data: Dict[str, Any]):
+    def _handle_query(self, sock: socket.socket, data: Dict[str, Any], address: tuple = None):
         """Handle QUERY message."""
+        database_name = data.get('database', 'default')  # NEW v3.0.0: Database support
         collection_name = data.get('collection')
         filters = data.get('filters', {})
         limit = data.get('limit', 100)
@@ -689,55 +863,108 @@ class NexaDBBinaryServer:
             self._send_error(sock, "Missing 'collection' field")
             return
 
-        # Query documents
-        collection = self.db.collection(collection_name)
+        # NEW v3.0.0: Check database permission
+        if address and not self._check_database_permission(address, database_name, 'read'):
+            self._send_error(sock, f"Permission denied: You don't have 'read' access to database '{database_name}'")
+            return
+
+        # Get database and collection
+        db = self.db.database(database_name)
+        collection = db.collection(collection_name)
         documents = collection.find(filters, limit=limit)
 
         self._send_success(sock, {
+            'database': database_name,
             'collection': collection_name,
             'documents': documents,
             'count': len(documents)
         })
 
-    def _handle_vector_search(self, sock: socket.socket, data: Dict[str, Any]):
+    def _handle_vector_search(self, sock: socket.socket, data: Dict[str, Any], address: tuple = None):
         """Handle VECTOR_SEARCH message."""
+        database_name = data.get('database', 'default')  # NEW v3.0.0: Database support
         collection_name = data.get('collection')
         vector = data.get('vector')
         limit = data.get('limit', 10)
         dimensions = data.get('dimensions', 768)
+        filters = data.get('filters')  # Optional metadata filters
 
         if not collection_name or not vector:
             self._send_error(sock, "Missing 'collection' or 'vector' field")
             return
 
-        # Vector search
-        vector_collection = self.db.vector_collection(collection_name, dimensions)
+        # NEW v3.0.0: Check database permission
+        if address and not self._check_database_permission(address, database_name, 'read'):
+            self._send_error(sock, f"Permission denied: You don't have 'read' access to database '{database_name}'")
+            return
+
+        # Get database and vector collection
+        db = self.db.database(database_name)
+        vector_collection = db.vector_collection(collection_name, dimensions)
         results = vector_collection.search(vector, limit=limit)
 
         # Format results
-        formatted_results = [
-            {
+        formatted_results = []
+        for doc_id, similarity, doc in results:
+            # Apply metadata filters if provided
+            if filters:
+                # Check if document matches all filters
+                matches = True
+                for field, condition in filters.items():
+                    doc_value = doc.get(field)
+                    if isinstance(condition, dict):
+                        # Handle operators like {'$gte': 100}
+                        for operator, operand in condition.items():
+                            if operator == '$gte' and not (doc_value >= operand):
+                                matches = False
+                                break
+                            elif operator == '$lte' and not (doc_value <= operand):
+                                matches = False
+                                break
+                            elif operator == '$gt' and not (doc_value > operand):
+                                matches = False
+                                break
+                            elif operator == '$lt' and not (doc_value < operand):
+                                matches = False
+                                break
+                    else:
+                        # Simple equality check
+                        if doc_value != condition:
+                            matches = False
+                            break
+                if not matches:
+                    continue
+
+            formatted_results.append({
                 'document_id': doc_id,
                 'similarity': float(similarity),
                 'document': doc
-            }
-            for doc_id, similarity, doc in results
-        ]
+            })
 
         self._send_success(sock, {
+            'database': database_name,
             'collection': collection_name,
             'results': formatted_results,
             'count': len(formatted_results)
         })
 
-    def _handle_batch_write(self, sock: socket.socket, data: Dict[str, Any]):
+    def _handle_batch_write(self, sock: socket.socket, data: Dict[str, Any], address: tuple = None):
         """Handle BATCH_WRITE message."""
+        database_name = data.get('database', 'default')  # NEW v3.0.0: Database support
         collection_name = data.get('collection')
         documents = data.get('documents', [])
 
         if not collection_name or not documents:
             self._send_error(sock, "Missing 'collection' or 'documents' field")
             return
+
+        # NEW v3.0.0: Check database permission
+        if address and not self._check_database_permission(address, database_name, 'write'):
+            self._send_error(sock, f"Permission denied: You don't have 'write' access to database '{database_name}'")
+            return
+
+        # Get database
+        db = self.db.database(database_name)
 
         # Check if documents have vector fields for automatic indexing
         has_vectors = any('vector' in doc and isinstance(doc.get('vector'), list) for doc in documents)
@@ -751,7 +978,7 @@ class NexaDBBinaryServer:
                     dimensions = len(doc['vector'])
                     break
 
-            vector_collection = self.db.vector_collection(collection_name, dimensions)
+            vector_collection = db.vector_collection(collection_name, dimensions)
 
             # Separate vector documents from regular documents
             vector_docs = []
@@ -777,16 +1004,17 @@ class NexaDBBinaryServer:
 
             # Insert regular documents
             if regular_docs:
-                collection = self.db.collection(collection_name)
+                collection = db.collection(collection_name)
                 for doc in regular_docs:
                     doc_id = collection.insert(doc)
                     doc_ids.append(doc_id)
         else:
             # Regular bulk insert (no vectors)
-            collection = self.db.collection(collection_name)
+            collection = db.collection(collection_name)
             doc_ids = collection.insert_many(documents)
 
         self._send_success(sock, {
+            'database': database_name,
             'collection': collection_name,
             'document_ids': doc_ids,
             'count': len(doc_ids),
@@ -807,6 +1035,7 @@ class NexaDBBinaryServer:
         Query collection and return results in TOON format.
         TOON format reduces token count by ~40-50% for LLM applications.
         """
+        database_name = data.get('database', 'default')  # NEW v3.0.0: Database support
         collection_name = data.get('collection')
         filters = data.get('filters', {})
         limit = data.get('limit', 100)
@@ -815,8 +1044,9 @@ class NexaDBBinaryServer:
             self._send_error(sock, "Missing 'collection' field")
             return
 
-        # Query documents
-        collection = self.db.collection(collection_name)
+        # Get database and collection
+        db = self.db.database(database_name)
+        collection = db.collection(collection_name)
         documents = collection.find(filters, limit=limit)
 
         # Convert to TOON format
@@ -833,6 +1063,7 @@ class NexaDBBinaryServer:
         token_reduction = ((json_size - toon_size) / json_size * 100) if json_size > 0 else 0
 
         self._send_success(sock, {
+            'database': database_name,
             'collection': collection_name,
             'format': 'TOON',
             'data': toon_data,
@@ -851,14 +1082,16 @@ class NexaDBBinaryServer:
         Export entire collection to TOON format.
         Perfect for AI/ML pipelines that need efficient data transfer.
         """
+        database_name = data.get('database', 'default')  # NEW v3.0.0: Database support
         collection_name = data.get('collection')
 
         if not collection_name:
             self._send_error(sock, "Missing 'collection' field")
             return
 
-        # Get all documents from collection
-        collection = self.db.collection(collection_name)
+        # Get database and collection
+        db = self.db.database(database_name)
+        collection = db.collection(collection_name)
         all_documents = collection.find({}, limit=10000)  # Export up to 10K docs
 
         # Convert to TOON format
@@ -876,6 +1109,7 @@ class NexaDBBinaryServer:
         token_reduction = ((json_size - toon_size) / json_size * 100) if json_size > 0 else 0
 
         self._send_success(sock, {
+            'database': database_name,
             'collection': collection_name,
             'format': 'TOON',
             'data': toon_data,
@@ -895,6 +1129,7 @@ class NexaDBBinaryServer:
         Import TOON formatted data into a collection.
         Automatically converts TOON to JSON for storage.
         """
+        database_name = data.get('database', 'default')  # NEW v3.0.0: Database support
         collection_name = data.get('collection')
         toon_data = data.get('toon_data')
         replace = data.get('replace', False)  # Replace existing collection?
@@ -929,8 +1164,9 @@ class NexaDBBinaryServer:
                 self._send_error(sock, "Invalid TOON data structure")
                 return
 
-            # Get collection
-            collection = self.db.collection(collection_name)
+            # Get database and collection
+            db = self.db.database(database_name)
+            collection = db.collection(collection_name)
 
             # Replace existing data if requested
             if replace:
@@ -943,6 +1179,7 @@ class NexaDBBinaryServer:
             doc_ids = collection.insert_many(documents)
 
             self._send_success(sock, {
+                'database': database_name,
                 'collection': collection_name,
                 'imported': len(doc_ids),
                 'replaced': replace,
@@ -1064,57 +1301,128 @@ class NexaDBBinaryServer:
         else:
             self._send_error(sock, f"Failed to change password for user '{username}'")
 
-    def _handle_list_collections(self, sock: socket.socket):
+    def _handle_list_collections(self, sock: socket.socket, data: Dict[str, Any] = None, address: tuple = None):
         """Handle LIST_COLLECTIONS message."""
         try:
-            collections = self.db.list_collections()
+            # NEW v3.0.0: Check if requesting database list
+            if data and data.get('database') == True:
+                databases = self.db.list_databases()
+
+                self._send_success(sock, {
+                    'databases': databases,
+                    'count': len(databases)
+                })
+                return
+
+            # Regular collection listing
+            database_name = data.get('database', 'default') if data and isinstance(data.get('database'), str) else 'default'
+
+            # NEW v3.0.0: Check database permission
+            if address and not self._check_database_permission(address, database_name, 'read'):
+                self._send_error(sock, f"Permission denied: You don't have 'read' access to database '{database_name}'")
+                return
+
+            # Get database and list collections
+            db = self.db.database(database_name)
+            collections = db.list_collections()
 
             self._send_success(sock, {
+                'database': database_name,
                 'collections': collections,
                 'count': len(collections)
             })
         except Exception as e:
             self._send_error(sock, f"Failed to list collections: {str(e)}")
 
-    def _handle_drop_collection(self, sock: socket.socket, data: Dict[str, Any]):
+    def _handle_drop_collection(self, sock: socket.socket, data: Dict[str, Any], address: tuple = None):
         """Handle DROP_COLLECTION message."""
+        # NEW v3.0.0: Check if this is database drop
+        if data.get('drop_database'):
+            database_name = data.get('database')
+
+            if not database_name:
+                self._send_error(sock, "Missing 'database' field")
+                return
+
+            # Check if current user is admin
+            with self.sessions_lock:
+                session = self.sessions.get(address)
+                if not session or session['role'] != 'admin':
+                    self._send_error(sock, "Permission denied. Only admins can drop databases.")
+                    return
+
+            # Prevent dropping critical databases
+            if database_name == 'default':
+                self._send_error(sock, "Cannot drop 'default' database")
+                return
+
+            try:
+                success = self.db.drop_database(database_name)
+
+                if success:
+                    print(f"[DATABASE] Admin '{session['username']}' dropped database '{database_name}'")
+                    self._send_success(sock, {
+                        'success': True,
+                        'database': database_name,
+                        'message': f"Database '{database_name}' dropped successfully"
+                    })
+                else:
+                    self._send_error(sock, f"Database '{database_name}' not found")
+            except Exception as e:
+                self._send_error(sock, f"Failed to drop database: {str(e)}")
+            return
+
+        # Regular collection drop
+        database_name = data.get('database', 'default')  # NEW v3.0.0: Database support
         collection_name = data.get('collection')
 
         if not collection_name:
             self._send_error(sock, "Missing 'collection' field")
             return
 
+        # NEW v3.0.0: Check database permission (requires admin)
+        if address and not self._check_database_permission(address, database_name, 'admin'):
+            self._send_error(sock, f"Permission denied: You need 'admin' access to drop collections in database '{database_name}'")
+            return
+
         try:
-            success = self.db.drop_collection(collection_name)
+            # Get database and drop collection
+            db = self.db.database(database_name)
+            success = db.drop_collection(collection_name)
 
             if success:
                 self._send_success(sock, {
+                    'database': database_name,
                     'collection': collection_name,
                     'message': 'Collection dropped'
                 })
             else:
-                self._send_error(sock, f"Collection '{collection_name}' not found")
+                self._send_error(sock, f"Collection '{collection_name}' not found in database '{database_name}'")
         except Exception as e:
             self._send_error(sock, f"Failed to drop collection: {str(e)}")
 
-    def _handle_get_vectors(self, sock: socket.socket):
+    def _handle_get_vectors(self, sock: socket.socket, data: Dict[str, Any] = None):
         """Handle GET_VECTORS message - get vector index statistics."""
         try:
             from collections import defaultdict
 
-            # Scan for all vectors
-            vector_prefix = 'vector:'
+            # NEW v3.0.0: Support database parameter
+            database_name = data.get('database', 'default') if data else 'default'
+
+            # Scan for all vectors in this database
+            # NEW format: db:{database}:vector:{collection}:{doc_id}
+            vector_prefix = f'db:{database_name}:vector:'
             all_vectors = list(self.db.engine.range_scan(vector_prefix, vector_prefix + '\xff'))
 
             # Group by collection and get detailed info
             vector_data = defaultdict(lambda: {'count': 0, 'documents': []})
 
             for key, vector_bytes in all_vectors:
-                # key format: vector:{collection}:{doc_id}
+                # key format: db:{database}:vector:{collection}:{doc_id}
                 parts = key.split(':')
-                if len(parts) >= 3:
-                    collection = parts[1]
-                    doc_id = parts[2]
+                if len(parts) >= 5:
+                    collection = parts[3]
+                    doc_id = parts[4]
 
                     # Parse vector to get dimensions
                     vector = json.loads(vector_bytes.decode('utf-8'))
@@ -1132,6 +1440,7 @@ class NexaDBBinaryServer:
 
             # Format response
             self._send_success(sock, {
+                'database': database_name,
                 'status': 'success',
                 'total_vectors': len(all_vectors),
                 'collections': dict(vector_data)
@@ -1217,6 +1526,277 @@ class NexaDBBinaryServer:
             'unsubscribed': True,
             'message': 'Unsubscribed from change stream'
         })
+
+    def _handle_list_databases(self, sock: socket.socket):
+        """
+        Handle LIST_DATABASES message.
+
+        NEW v3.0.0: List all databases in the system
+        """
+        try:
+            databases = self.db.list_databases()
+
+            self._send_success(sock, {
+                'databases': databases,
+                'count': len(databases)
+            })
+        except Exception as e:
+            self._send_error(sock, f"Failed to list databases: {str(e)}")
+
+    def _handle_drop_database(self, sock: socket.socket, data: Dict[str, Any]):
+        """
+        Handle DROP_DATABASE message.
+
+        NEW v3.0.0: Drop entire database and all its collections
+        """
+        database_name = data.get('database')
+
+        if not database_name:
+            self._send_error(sock, "Missing 'database' field")
+            return
+
+        # Prevent dropping critical databases
+        if database_name == 'default':
+            self._send_error(sock, "Cannot drop 'default' database")
+            return
+
+        try:
+            success = self.db.drop_database(database_name)
+
+            if success:
+                self._send_success(sock, {
+                    'database': database_name,
+                    'message': f"Database '{database_name}' dropped successfully"
+                })
+            else:
+                self._send_error(sock, f"Database '{database_name}' not found")
+        except Exception as e:
+            self._send_error(sock, f"Failed to drop database: {str(e)}")
+
+    def _handle_import_mongodb_database(self, sock: socket.socket, data: Dict[str, Any]):
+        """
+        Handle IMPORT_MONGODB_DB message.
+
+        NEW v3.0.0: Import entire MongoDB database with all collections
+
+        Request format:
+        {
+            'mongodb_uri': 'mongodb://localhost:27017',
+            'mongodb_database': 'source_db',
+            'nexadb_database': 'target_db',
+            'drop_existing': False  # Optional
+        }
+        """
+        mongodb_uri = data.get('mongodb_uri')
+        mongodb_database = data.get('mongodb_database')
+        nexadb_database = data.get('nexadb_database', mongodb_database)
+        drop_existing = data.get('drop_existing', False)
+
+        if not mongodb_uri or not mongodb_database:
+            self._send_error(sock, "Missing 'mongodb_uri' or 'mongodb_database' field")
+            return
+
+        try:
+            # Import pymongo
+            try:
+                import pymongo
+            except ImportError:
+                self._send_error(sock, "pymongo not installed. Install with: pip install pymongo")
+                return
+
+            # Connect to MongoDB
+            mongo_client = pymongo.MongoClient(mongodb_uri, serverSelectionTimeoutMS=5000)
+            mongo_db = mongo_client[mongodb_database]
+
+            # Get all collections
+            collection_names = mongo_db.list_collection_names()
+
+            # Get NexaDB database
+            nexa_db = self.db.database(nexadb_database)
+
+            # Import each collection
+            imported_collections = []
+            total_documents = 0
+
+            for coll_name in collection_names:
+                mongo_collection = mongo_db[coll_name]
+
+                # Drop existing if requested
+                if drop_existing:
+                    nexa_db.drop_collection(coll_name)
+
+                # Get NexaDB collection
+                nexa_collection = nexa_db.collection(coll_name)
+
+                # Fetch all documents from MongoDB (batch by batch)
+                documents = list(mongo_collection.find({}))
+
+                # Convert MongoDB ObjectId to string
+                for doc in documents:
+                    if '_id' in doc:
+                        doc['_id'] = str(doc['_id'])
+
+                # Batch insert into NexaDB
+                if documents:
+                    nexa_collection.insert_many(documents)
+                    total_documents += len(documents)
+
+                imported_collections.append({
+                    'name': coll_name,
+                    'count': len(documents)
+                })
+
+            mongo_client.close()
+
+            self._send_success(sock, {
+                'success': True,
+                'database': nexadb_database,
+                'collections_imported': len(imported_collections),
+                'total_documents': total_documents,
+                'collections': imported_collections
+            })
+
+        except Exception as e:
+            self._send_error(sock, f"Failed to import MongoDB database: {str(e)}")
+
+    def _handle_import_mongodb_collection(self, sock: socket.socket, data: Dict[str, Any]):
+        """
+        Handle IMPORT_MONGODB_COLLECTION message.
+
+        NEW v3.0.0: Import single MongoDB collection
+
+        Request format:
+        {
+            'mongodb_uri': 'mongodb://localhost:27017',
+            'mongodb_database': 'source_db',
+            'mongodb_collection': 'users',
+            'nexadb_database': 'target_db',
+            'nexadb_collection': 'users',  # Optional, defaults to same name
+            'drop_existing': False  # Optional
+        }
+        """
+        mongodb_uri = data.get('mongodb_uri')
+        mongodb_database = data.get('mongodb_database')
+        mongodb_collection = data.get('mongodb_collection')
+        nexadb_database = data.get('nexadb_database', 'default')
+        nexadb_collection = data.get('nexadb_collection', mongodb_collection)
+        drop_existing = data.get('drop_existing', False)
+
+        if not mongodb_uri or not mongodb_database or not mongodb_collection:
+            self._send_error(sock, "Missing required fields: 'mongodb_uri', 'mongodb_database', or 'mongodb_collection'")
+            return
+
+        try:
+            # Import pymongo
+            try:
+                import pymongo
+            except ImportError:
+                self._send_error(sock, "pymongo not installed. Install with: pip install pymongo")
+                return
+
+            # Connect to MongoDB
+            mongo_client = pymongo.MongoClient(mongodb_uri, serverSelectionTimeoutMS=5000)
+            mongo_db = mongo_client[mongodb_database]
+            mongo_coll = mongo_db[mongodb_collection]
+
+            # Get NexaDB database and collection
+            nexa_db = self.db.database(nexadb_database)
+
+            # Drop existing if requested
+            if drop_existing:
+                nexa_db.drop_collection(nexadb_collection)
+
+            nexa_coll = nexa_db.collection(nexadb_collection)
+
+            # Fetch all documents from MongoDB
+            documents = list(mongo_coll.find({}))
+
+            # Convert MongoDB ObjectId to string
+            for doc in documents:
+                if '_id' in doc:
+                    doc['_id'] = str(doc['_id'])
+
+            # Batch insert into NexaDB
+            doc_count = 0
+            if documents:
+                nexa_coll.insert_many(documents)
+                doc_count = len(documents)
+
+            mongo_client.close()
+
+            self._send_success(sock, {
+                'success': True,
+                'database': nexadb_database,
+                'collection': nexadb_collection,
+                'documents_imported': doc_count
+            })
+
+        except Exception as e:
+            self._send_error(sock, f"Failed to import MongoDB collection: {str(e)}")
+
+    def _handle_build_hnsw_index(self, sock: socket.socket, data: Dict[str, Any], address: tuple = None):
+        """
+        Handle BUILD_HNSW_INDEX message.
+
+        NEW v3.0.0: Build or rebuild HNSW index for vector collection
+
+        Request format:
+        {
+            'collection': 'embeddings',
+            'database': 'default',
+            'M': 16,  # Optional
+            'ef_construction': 200  # Optional
+        }
+        """
+        database_name = data.get('database', 'default')
+        collection_name = data.get('collection')
+        M = data.get('M')
+        ef_construction = data.get('ef_construction')
+
+        if not collection_name:
+            self._send_error(sock, "Missing 'collection' field")
+            return
+
+        # NEW v3.0.0: Check database permission
+        if address and not self._check_database_permission(address, database_name, 'write'):
+            self._send_error(sock, f"Permission denied: You need 'write' access to build indexes in database '{database_name}'")
+            return
+
+        try:
+            # Get database
+            db = self.db.database(database_name)
+
+            # Determine vector dimensions - need to scan for a vector to get dimensions
+            # Scan for vectors in this collection
+            vector_prefix = f"db:{database_name}:vector:{collection_name}:"
+            all_vectors = list(self.db.engine.range_scan(vector_prefix, vector_prefix + '\xff'))
+
+            if not all_vectors:
+                self._send_error(sock, f"No vectors found in collection '{collection_name}'")
+                return
+
+            # Get dimensions from first vector
+            first_vector_bytes = all_vectors[0][1]
+            try:
+                import json
+                vector = json.loads(first_vector_bytes.decode('utf-8'))
+                dimensions = len(vector)
+            except:
+                # Try numpy format
+                import numpy as np
+                vector = np.frombuffer(first_vector_bytes, dtype=np.float32)
+                dimensions = len(vector)
+
+            # Get vector collection
+            vector_collection = db.vector_collection(collection_name, dimensions)
+
+            # Build HNSW index with optional parameters
+            result = vector_collection.build_hnsw_index(M=M, ef_construction=ef_construction)
+
+            self._send_success(sock, result)
+
+        except Exception as e:
+            self._send_error(sock, f"Failed to build HNSW index: {str(e)}")
 
     def get_stats(self) -> Dict[str, Any]:
         """Get server statistics."""

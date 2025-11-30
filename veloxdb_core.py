@@ -100,11 +100,13 @@ class BTreeIndex:
     Transforms query performance from O(n) to O(log n)
     """
 
-    def __init__(self, name: str, field: str, engine: LSMStorageEngine):
+    def __init__(self, name: str, field: str, engine: LSMStorageEngine, database: str = 'default'):
         self.name = name
         self.field = field
+        self.database = database  # NEW: Database for this index
         self.engine = engine
-        self.index_prefix = f"index:{name}:{field}:"
+        # NEW: Include database in index prefix
+        self.index_prefix = f"db:{database}:index:{name}:{field}:"
 
     def add(self, doc_id: str, value: Any):
         """Add document to index"""
@@ -285,8 +287,9 @@ class Collection:
     OPTIMIZED: Now with intelligent query optimizer!
     """
 
-    def __init__(self, name: str, engine: LSMStorageEngine, change_stream: Optional[ChangeStream] = None):
+    def __init__(self, name: str, engine: LSMStorageEngine, change_stream: Optional[ChangeStream] = None, database: str = 'default'):
         self.name = name
+        self.database = database  # NEW: Database this collection belongs to
         self.engine = engine
         self.indexes: Dict[str, BTreeIndex] = {}  # field_name -> BTreeIndex
         self.optimizer = QueryOptimizer()
@@ -294,7 +297,8 @@ class Collection:
 
     def _doc_key(self, doc_id: str) -> str:
         """Generate storage key for document"""
-        return f"collection:{self.name}:doc:{doc_id}"
+        # NEW: Include database in key pattern
+        return f"db:{self.database}:collection:{self.name}:doc:{doc_id}"
 
     def create_index(self, field: str):
         """
@@ -310,11 +314,13 @@ class Collection:
         print(f"[INDEX] Creating index on '{field}' for collection '{self.name}'...")
 
         # Create index
-        index = BTreeIndex(self.name, field, self.engine)
+        # NEW: Pass database parameter to index
+        index = BTreeIndex(self.name, field, self.engine, self.database)
         self.indexes[field] = index
 
         # Build index from existing documents
-        prefix = f"collection:{self.name}:doc:"
+        # NEW: Include database in prefix
+        prefix = f"db:{self.database}:collection:{self.name}:doc:"
         all_docs = self.engine.range_scan(prefix, prefix + '\xff')
 
         count = 0
@@ -450,7 +456,8 @@ class Collection:
     def _full_scan(self, query: Dict[str, Any], limit: int) -> List[Dict[str, Any]]:
         """Perform full table scan"""
         results = []
-        prefix = f"collection:{self.name}:doc:"
+        # NEW: Include database in prefix
+        prefix = f"db:{self.database}:collection:{self.name}:doc:"
         all_docs = self.engine.range_scan(prefix, prefix + '\xff')
 
         for _, doc_bytes in all_docs:
@@ -534,7 +541,8 @@ class Collection:
 
         # Also delete associated vector if it exists (for documents with vector embeddings)
         # This handles cleanup for documents inserted via auto-indexing
-        vector_key = f"vector:{self.name}:{doc_id}"
+        # NEW: Include database in vector key
+        vector_key = f"db:{self.database}:vector:{self.name}:{doc_id}"
         self.engine.delete(vector_key)  # Safe to call even if vector doesn't exist
 
         # Emit change event
@@ -707,12 +715,20 @@ class VectorCollection:
     OPTIMIZED: Now uses HNSW index for 100-200x faster vector search!
     """
 
-    def __init__(self, name: str, engine: LSMStorageEngine, dimensions: int, data_dir: str = './veloxdb_data'):
+    def __init__(self, name: str, engine: LSMStorageEngine, dimensions: int, data_dir: str = './veloxdb_data', database: str = 'default'):
         self.name = name
+        self.database = database  # NEW: Database for this vector collection
         self.engine = engine
         self.dimensions = dimensions
-        self.collection = Collection(name, engine)
+        # NEW: Pass database to Collection
+        self.collection = Collection(name, engine, database=database)
         self.data_dir = data_dir
+
+        # Check if existing index file exists
+        index_path = os.path.join(data_dir, f'vector_index_{name}')
+        index_exists = (os.path.exists(f"{index_path}.hnsw") or
+                       os.path.exists(f"{index_path}.brute") or
+                       os.path.exists(f"{index_path}.faiss"))
 
         # Initialize vector index (use fast faiss if available!)
         # Support up to 1M vectors (10x headroom for production workloads)
@@ -723,11 +739,8 @@ class VectorCollection:
             self.vector_index = create_vector_index(dimensions, max_elements=1000000)
             print(f"[VECTOR COLLECTION] Using hnswlib backend")
 
-        # Load existing index if it exists
-        index_path = os.path.join(data_dir, f'vector_index_{name}')
-        if (os.path.exists(f"{index_path}.hnsw") or
-            os.path.exists(f"{index_path}.brute") or
-            os.path.exists(f"{index_path}.faiss")):
+        # Load existing index if it exists (overrides freshly initialized index)
+        if index_exists:
             try:
                 self.vector_index.load(index_path)
                 print(f"[VECTOR INDEX] Loaded {self.vector_index.num_vectors} vectors for collection '{name}'")
@@ -751,7 +764,8 @@ class VectorCollection:
         doc_id = self.collection.insert(data)
 
         # Store vector separately (for persistence) - use numpy for speed!
-        vector_key = f"vector:{self.name}:{doc_id}"
+        # NEW: Include database in vector key
+        vector_key = f"db:{self.database}:vector:{self.name}:{doc_id}"
         if HAS_NUMPY:
             # numpy binary format is 10x faster than JSON
             vector_bytes = np.array(vector, dtype=np.float32).tobytes()
@@ -809,7 +823,8 @@ class VectorCollection:
                 docs_to_insert.append((doc_id, doc.to_bytes()))
 
                 # Prepare for batch vector storage (use numpy for 10x faster serialization!)
-                vector_key = f"vector:{self.name}:{doc_id}"
+                # NEW: Include database in vector key
+                vector_key = f"db:{self.database}:vector:{self.name}:{doc_id}"
                 if HAS_NUMPY:
                     # numpy binary format is 10x faster than JSON
                     vector_bytes = np.array(vector, dtype=np.float32).tobytes()
@@ -866,12 +881,57 @@ class VectorCollection:
         except Exception as e:
             print(f"[VECTOR INDEX] Failed to save: {e}")
 
+    def build_hnsw_index(self, M: Optional[int] = None, ef_construction: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Build or rebuild HNSW index for this vector collection.
+
+        This method can be called to:
+        - Rebuild the index after bulk inserts
+        - Optimize index with custom parameters
+        - Rebuild corrupted index
+
+        Args:
+            M: Maximum number of connections per layer (default: use existing)
+            ef_construction: Size of dynamic candidate list (default: use existing)
+
+        Returns:
+            Dictionary with build status and statistics
+        """
+        print(f"[VECTOR INDEX] Building HNSW index for collection '{self.name}'...")
+
+        # Get parameters (use provided or defaults)
+        existing_M = getattr(self.vector_index, 'M', 16)
+        existing_ef = getattr(self.vector_index, 'efConstruction', 200)
+
+        new_M = M if M is not None else existing_M
+        new_ef = ef_construction if ef_construction is not None else existing_ef
+
+        # ALWAYS recreate index to ensure clean rebuild
+        if USE_FAST_INDEX:
+            self.vector_index = create_fast_vector_index(self.dimensions, max_elements=1000000)
+        else:
+            self.vector_index = create_vector_index(self.dimensions, max_elements=1000000)
+
+        print(f"[VECTOR INDEX] Using parameters: M={new_M}, ef_construction={new_ef}")
+
+        # Rebuild the index from stored vectors
+        self._rebuild_index()
+
+        return {
+            'status': 'success',
+            'collection': self.name,
+            'database': self.database,
+            'num_vectors': self.vector_index.num_vectors,
+            'message': f'HNSW index built with {self.vector_index.num_vectors} vectors'
+        }
+
     def _rebuild_index(self):
         """Rebuild HNSW index from stored vectors"""
         print(f"[VECTOR INDEX] Rebuilding index for collection '{self.name}'...")
 
         # Scan all vectors in storage
-        prefix = f"vector:{self.name}:"
+        # NEW: Include database in prefix
+        prefix = f"db:{self.database}:vector:{self.name}:"
         all_vectors = self.engine.range_scan(prefix, prefix + '\xff')
 
         vectors_to_add = []
@@ -939,50 +999,97 @@ class VectorCollection:
         }
 
 
-class VeloxDB:
+class Database:
     """
-    Main VeloxDB interface
+    Database container for collections (MongoDB-like hierarchy)
 
-    Features:
-    - Multiple collections
-    - Transactions (ACID)
-    - Batch operations
-    - Schema-free documents
-    - Vector search
-    - Full-text search
+    A database contains multiple collections and provides isolation
+    and organization for your data.
     """
 
-    def __init__(self, data_dir: str = './veloxdb_data'):
+    def __init__(self, name: str, engine: LSMStorageEngine, change_stream: ChangeStream, data_dir: str):
+        self.name = name
+        self.engine = engine
+        self.change_stream = change_stream
         self.data_dir = data_dir
-        self.engine = LSMStorageEngine(data_dir)
-        self.collections = {}
-        self.vector_collections = {}
-        self.change_stream = ChangeStream()  # MongoDB-style change streams
+        self.collections = {}  # Collection name -> Collection object
+        self.vector_collections = {}  # Collection name -> VectorCollection object
+        self._ensure_metadata()
+
+    def _ensure_metadata(self):
+        """Create database metadata if it doesn't exist"""
+        metadata_key = f"db:{self.name}:_meta"
+        if not self.engine.get(metadata_key):
+            metadata = {
+                'name': self.name,
+                'created_at': time.time(),
+                'version': '3.0.0'
+            }
+            self.engine.put(metadata_key, json.dumps(metadata).encode('utf-8'))
 
     def collection(self, name: str) -> Collection:
-        """Get or create collection"""
+        """Get or create collection in this database"""
         if name not in self.collections:
-            self.collections[name] = Collection(name, self.engine, self.change_stream)
+            self.collections[name] = Collection(
+                name=name,
+                engine=self.engine,
+                change_stream=self.change_stream,
+                database=self.name
+            )
         return self.collections[name]
 
     def vector_collection(self, name: str, dimensions: int = 768) -> VectorCollection:
-        """Get or create vector collection"""
+        """Get or create vector collection in this database"""
         key = f"{name}:{dimensions}"
         if key not in self.vector_collections:
-            self.vector_collections[key] = VectorCollection(name, self.engine, dimensions, self.data_dir)
+            self.vector_collections[key] = VectorCollection(
+                name=name,
+                engine=self.engine,
+                dimensions=dimensions,
+                data_dir=self.data_dir,
+                database=self.name
+            )
         return self.vector_collections[key]
 
+    def list_collections(self) -> List[str]:
+        """List all collections in this database"""
+        collection_names = set()
+
+        # Scan storage engine for collection keys in this database
+        # Format: db:{database}:collection:{name}:doc:{id}
+        prefix = f"db:{self.name}:collection:"
+        all_keys = self.engine.range_scan(prefix, prefix + '\xff')
+
+        for key, _ in all_keys:
+            # Extract collection name from key format: db:{database}:collection:{name}:...
+            parts = key.split(':')
+            if len(parts) >= 4 and parts[0] == 'db' and parts[2] == 'collection':
+                collection_names.add(parts[3])
+
+        # FIX v3.0.1: Don't include in-memory collections that have no documents
+        # Only return collections that actually exist in storage
+        # collection_names.update(self.collections.keys())
+
+        return sorted(list(collection_names))
+
     def drop_collection(self, name: str) -> bool:
-        """Delete entire collection"""
-        # Delete ALL keys related to this collection (documents, indexes, metadata)
-        collection_prefix = f"collection:{name}:"
+        """Delete entire collection from this database"""
+        # Delete ALL keys related to this collection in this database
+        collection_prefix = f"db:{self.name}:collection:{name}:"
         all_collection_keys = list(self.engine.range_scan(collection_prefix, collection_prefix + '\xff'))
 
         for key, _ in all_collection_keys:
             self.engine.delete(key)
 
+        # Delete all indexes for this collection
+        index_prefix = f"db:{self.name}:index:{name}:"
+        all_indexes = list(self.engine.range_scan(index_prefix, index_prefix + '\xff'))
+
+        for key, _ in all_indexes:
+            self.engine.delete(key)
+
         # Delete all vectors associated with this collection
-        vector_prefix = f"vector:{name}:"
+        vector_prefix = f"db:{self.name}:vector:{name}:"
         all_vectors = list(self.engine.range_scan(vector_prefix, vector_prefix + '\xff'))
 
         for key, _ in all_vectors:
@@ -992,6 +1099,11 @@ class VeloxDB:
         if name in self.collections:
             del self.collections[name]
 
+        # Remove vector collections
+        to_remove = [k for k in self.vector_collections if k.startswith(f"{name}:")]
+        for k in to_remove:
+            del self.vector_collections[k]
+
         # Emit change event
         if self.change_stream:
             event = ChangeEvent(
@@ -1000,8 +1112,143 @@ class VeloxDB:
             )
             self.change_stream.emit(event)
 
-        # Return True if we deleted anything
         return len(all_collection_keys) > 0 or len(all_vectors) > 0
+
+
+class VeloxDB:
+    """
+    Main VeloxDB interface
+
+    Features:
+    - Multiple databases (MongoDB-like hierarchy)
+    - Multiple collections per database
+    - Transactions (ACID)
+    - Batch operations
+    - Schema-free documents
+    - Vector search
+    - Full-text search
+    - Database-level RBAC
+    """
+
+    def __init__(self, data_dir: str = './veloxdb_data'):
+        self.data_dir = data_dir
+        self.engine = LSMStorageEngine(data_dir)
+        self.databases = {}  # Database name -> Database object
+        self.collections = {}  # Backward compatibility: flat collections
+        self.vector_collections = {}  # Backward compatibility: flat vector collections
+        self.change_stream = ChangeStream()  # MongoDB-style change streams
+
+    def database(self, name: str) -> Database:
+        """
+        Get or create database
+
+        NEW v3.0.0: MongoDB-like database hierarchy
+
+        Example:
+            db = veloxdb.database('mydb')
+            users = db.collection('users')
+        """
+        if name not in self.databases:
+            self.databases[name] = Database(
+                name=name,
+                engine=self.engine,
+                change_stream=self.change_stream,
+                data_dir=self.data_dir
+            )
+        return self.databases[name]
+
+    def list_databases(self) -> List[str]:
+        """
+        List all databases
+
+        NEW v3.0.0: List all databases in the system
+        """
+        database_names = set()
+
+        # Scan storage engine for database metadata keys
+        # Format: db:{name}:_meta
+        all_keys = self.engine.range_scan('db:', 'db:\xff')
+
+        for key, _ in all_keys:
+            # Extract database name from key format: db:{name}:...
+            parts = key.split(':')
+            if len(parts) >= 2 and parts[0] == 'db' and parts[1]:  # Filter out empty names
+                database_names.add(parts[1])
+
+        # Also include in-memory databases
+        database_names.update(self.databases.keys())
+
+        # Filter out None and empty strings before sorting
+        return sorted([name for name in database_names if name])
+
+    def drop_database(self, name: str) -> bool:
+        """
+        Drop entire database and all its collections
+
+        NEW v3.0.0: Delete database and all data
+
+        WARNING: This is irreversible!
+        """
+        # Delete ALL keys related to this database
+        database_prefix = f"db:{name}:"
+        all_keys = list(self.engine.range_scan(database_prefix, database_prefix + '\xff'))
+
+        for key, _ in all_keys:
+            self.engine.delete(key)
+
+        # Remove from in-memory cache
+        if name in self.databases:
+            del self.databases[name]
+
+        return len(all_keys) > 0
+
+    def collection(self, name: str) -> Collection:
+        """
+        Get or create collection in 'default' database
+
+        Backward compatibility: For code that doesn't use database hierarchy
+        """
+        if name not in self.collections:
+            self.collections[name] = Collection(
+                name=name,
+                engine=self.engine,
+                change_stream=self.change_stream,
+                database='default'  # Use default database
+            )
+        return self.collections[name]
+
+    def vector_collection(self, name: str, dimensions: int = 768) -> VectorCollection:
+        """
+        Get or create vector collection in 'default' database
+
+        Backward compatibility: For code that doesn't use database hierarchy
+        """
+        key = f"{name}:{dimensions}"
+        if key not in self.vector_collections:
+            self.vector_collections[key] = VectorCollection(
+                name=name,
+                engine=self.engine,
+                dimensions=dimensions,
+                data_dir=self.data_dir,
+                database='default'  # Use default database
+            )
+        return self.vector_collections[key]
+
+    def drop_collection(self, name: str) -> bool:
+        """
+        Delete entire collection from 'default' database
+
+        Backward compatibility: For code that doesn't use database hierarchy
+        """
+        # Use the default database's drop_collection method
+        default_db = self.database('default')
+        success = default_db.drop_collection(name)
+
+        # Also remove from local cache
+        if name in self.collections:
+            del self.collections[name]
+
+        return success
 
     def watch(self, collection: Optional[str] = None):
         """
@@ -1027,23 +1274,14 @@ class VeloxDB:
         return self.change_stream.watch(collection=collection)
 
     def list_collections(self) -> List[str]:
-        """List all collections (scans storage engine for existing collections)"""
-        collection_names = set()
+        """
+        List all collections in 'default' database
 
-        # Scan storage engine for collection keys
-        # Format: collection:{name}:doc:{id} or collection:{name}:index:{field}:{value}
-        all_keys = self.engine.range_scan('collection:', 'collection:\xff')
-
-        for key, _ in all_keys:
-            # Extract collection name from key format: collection:{name}:...
-            parts = key.split(':')
-            if len(parts) >= 2 and parts[0] == 'collection':
-                collection_names.add(parts[1])
-
-        # Also include in-memory collections
-        collection_names.update(self.collections.keys())
-
-        return sorted(list(collection_names))
+        Backward compatibility: For code that doesn't use database hierarchy
+        """
+        # Use the default database's list_collections method
+        default_db = self.database('default')
+        return default_db.list_collections()
 
     def stats(self) -> Dict[str, Any]:
         """Database statistics"""

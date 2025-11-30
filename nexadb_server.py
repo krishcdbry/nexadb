@@ -22,8 +22,10 @@ import time
 
 # Import NexaClient and authentication
 import sys
+import os
 sys.path.append('.')
-from nexadb_client import NexaClient
+sys.path.append(os.path.join(os.path.dirname(__file__), 'nexadb-python'))
+from nexaclient import NexaClient  # v3.0.0 client with multi-database support
 from unified_auth import UnifiedAuthManager
 
 
@@ -247,9 +249,10 @@ class NexaDBHandler(BaseHTTPRequestHandler):
             # Parse query parameters
             query = json.loads(params.get('query', ['{}'])[0])
             limit = int(params.get('limit', [100])[0])
+            database = params.get('database', [None])[0]  # v3.0.0: Extract database parameter
 
             # Query via NexaClient (connects to binary server)
-            documents = self.client.query(collection_name, query, limit=limit)
+            documents = self.client.query(collection_name, query, limit=limit, database=database)
 
             self._send_json({
                 'status': 'success',
@@ -375,8 +378,12 @@ class NexaDBHandler(BaseHTTPRequestHandler):
 
             collection_name = parts[1]
 
+            # Extract database parameter from query string (v3.0.0)
+            params = parse_qs(parsed.query)
+            database = params.get('database', [None])[0]
+
             # Create via NexaClient (connects to binary server)
-            result = self.client.create(collection_name, body)
+            result = self.client.create(collection_name, body, database=database)
             doc_id = result['document_id']
 
             self._send_json({
@@ -442,9 +449,10 @@ class NexaDBHandler(BaseHTTPRequestHandler):
             vector = body.get('vector', [])
             limit = body.get('limit', 10)
             dimensions = body.get('dimensions', 768)
+            database = body.get('database')  # v3.0.0: Extract database parameter from body
 
             # Vector search via NexaClient (connects to binary server)
-            results = self.client.vector_search(collection_name, vector, limit=limit, dimensions=dimensions)
+            results = self.client.vector_search(collection_name, vector, limit=limit, dimensions=dimensions, database=database)
 
             self._send_json({
                 'status': 'success',
@@ -509,6 +517,30 @@ class NexaDBHandler(BaseHTTPRequestHandler):
             self._send_error('Invalid JSON body', 400)
             return
 
+        # v3.0.0: Update document with new URL format /databases/{database}/collections/{collection}/documents/{id}
+        if len(parts) == 6 and parts[0] == 'databases' and parts[2] == 'collections' and parts[4] == 'documents':
+            # Check write permission
+            if not self._check_permission(user, 'write'):
+                self._send_error('Permission denied. Write access required to update documents.', 403)
+                return
+
+            database = parts[1]
+            collection_name = parts[3]
+            doc_id = parts[5]
+
+            try:
+                # Update via NexaClient (connects to binary server)
+                result = self.client.update(collection_name, doc_id, body, database=database)
+                self._send_json({
+                    'status': 'success',
+                    'collection': collection_name,
+                    'document_id': doc_id,
+                    'message': 'Document updated'
+                })
+            except Exception as e:
+                self._send_error(f'Document not found or update failed: {str(e)}', 404)
+            return
+
         # Update document (requires write permission)
         if len(parts) == 3 and parts[0] == 'collections':
             # Check write permission
@@ -519,9 +551,13 @@ class NexaDBHandler(BaseHTTPRequestHandler):
             collection_name = parts[1]
             doc_id = parts[2]
 
+            # Extract database parameter from query string (v3.0.0)
+            params = parse_qs(parsed.query)
+            database = params.get('database', [None])[0]
+
             try:
                 # Update via NexaClient (connects to binary server)
-                result = self.client.update(collection_name, doc_id, body)
+                result = self.client.update(collection_name, doc_id, body, database=database)
                 self._send_json({
                     'status': 'success',
                     'collection': collection_name,
@@ -584,6 +620,30 @@ class NexaDBHandler(BaseHTTPRequestHandler):
         path = parsed.path
         parts = path.strip('/').split('/')
 
+        # v3.0.0: Delete document with new URL format /databases/{database}/collections/{collection}/documents/{id}
+        if len(parts) == 6 and parts[0] == 'databases' and parts[2] == 'collections' and parts[4] == 'documents':
+            # Check write permission
+            if not self._check_permission(user, 'write'):
+                self._send_error('Permission denied. Write access required to delete documents.', 403)
+                return
+
+            database = parts[1]
+            collection_name = parts[3]
+            doc_id = parts[5]
+
+            try:
+                # Delete via NexaClient (connects to binary server)
+                result = self.client.delete(collection_name, doc_id, database=database)
+                self._send_json({
+                    'status': 'success',
+                    'collection': collection_name,
+                    'document_id': doc_id,
+                    'message': 'Document deleted'
+                })
+            except Exception as e:
+                self._send_error(f'Document not found or delete failed: {str(e)}', 404)
+            return
+
         # Delete document (requires write permission)
         if len(parts) == 3 and parts[0] == 'collections':
             # Check write permission
@@ -594,9 +654,13 @@ class NexaDBHandler(BaseHTTPRequestHandler):
             collection_name = parts[1]
             doc_id = parts[2]
 
+            # Extract database parameter from query string (v3.0.0)
+            params = parse_qs(parsed.query)
+            database = params.get('database', [None])[0]
+
             try:
                 # Delete via NexaClient (connects to binary server)
-                result = self.client.delete(collection_name, doc_id)
+                result = self.client.delete(collection_name, doc_id, database=database)
                 self._send_json({
                     'status': 'success',
                     'collection': collection_name,
@@ -616,8 +680,12 @@ class NexaDBHandler(BaseHTTPRequestHandler):
 
             collection_name = parts[1]
 
+            # Extract database parameter from query string (v3.0.0)
+            params = parse_qs(parsed.query)
+            database = params.get('database', [None])[0]
+
             # Drop via NexaClient (connects to binary server)
-            success = self.client.drop_collection(collection_name)
+            success = self.client.drop_collection(collection_name, database=database)
 
             if success:
                 self._send_json({
@@ -862,6 +930,12 @@ def main():
             except subprocess.TimeoutExpired:
                 admin_process.kill()
 
+        # Remove PID file (NEW v2.3.1)
+        pid_file_path = os.path.join(data_dir, '.nexadb.pid')
+        if os.path.exists(pid_file_path):
+            os.remove(pid_file_path)
+            print("[SHUTDOWN] PID file removed")
+
     # Register signal handler
     signal.signal(signal.SIGINT, cleanup_processes)
     signal.signal(signal.SIGTERM, cleanup_processes)
@@ -956,6 +1030,14 @@ def main():
                 text=True
             )
             time.sleep(1.0)  # Give admin server time to start
+
+            # Create PID file for graceful shutdown (NEW v2.3.1)
+            pid_file_path = os.path.join(data_dir, '.nexadb.pid')
+            with open(pid_file_path, 'w') as pid_file:
+                pid_file.write(f"{binary_process.pid}\n")  # Binary server PID
+                pid_file.write(f"{admin_process.pid}\n")   # Admin server PID
+                pid_file.write(f"{os.getpid()}\n")         # REST server PID (current process)
+            print(f"[INIT] PID file created: {pid_file_path}")
 
         # Start REST API server in main process
         server = NexaDBServer(host=host, port=port, data_dir=data_dir)

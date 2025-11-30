@@ -427,13 +427,14 @@ class NexaClient:
     # CORE CRUD OPERATIONS
     # ============================================================================
 
-    def create(self, collection: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    def create(self, collection: str, data: Dict[str, Any], database: Optional[str] = None) -> Dict[str, Any]:
         """
         Insert document into collection.
 
         Args:
             collection: Collection name
             data: Document data
+            database: Optional database name (v3.0.0). If not specified, uses 'default'.
 
         Returns:
             {'collection': str, 'document_id': str, 'message': str}
@@ -441,11 +442,19 @@ class NexaClient:
         Example:
             >>> db.create('users', {'name': 'Alice', 'email': 'alice@example.com'})
             {'collection': 'users', 'document_id': 'abc123', 'message': 'Document inserted'}
+
+            >>> # Create in specific database (v3.0.0)
+            >>> db.create('orders', {'product': 'Widget'}, database='production')
+            {'collection': 'orders', 'document_id': 'xyz789', 'message': 'Document inserted'}
         """
-        return self.conn.send_message(MSG_CREATE, {
+        message_data = {
             'collection': collection,
             'data': data
-        })
+        }
+        if database:
+            message_data['database'] = database
+
+        return self.conn.send_message(MSG_CREATE, message_data)
 
     def get(self, collection: str, key: str) -> Optional[Dict[str, Any]]:
         """
@@ -520,7 +529,8 @@ class NexaClient:
         self,
         collection: str,
         filters: Optional[Dict[str, Any]] = None,
-        limit: int = 100
+        limit: int = 100,
+        database: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Query documents with filters.
@@ -529,6 +539,7 @@ class NexaClient:
             collection: Collection name
             filters: Query filters (default: {})
             limit: Max results (default: 100)
+            database: Optional database name (v3.0.0). If not specified, uses 'default'.
 
         Returns:
             List of matching documents
@@ -537,12 +548,21 @@ class NexaClient:
             >>> users = db.query('users', {'age': {'$gte': 25}}, 10)
             >>> print(len(users))
             5
+
+            >>> # Query from specific database (v3.0.0)
+            >>> orders = db.query('orders', {}, database='production')
+            >>> print(len(orders))
+            42
         """
-        response = self.conn.send_message(MSG_QUERY, {
+        message_data = {
             'collection': collection,
             'filters': filters or {},
             'limit': limit
-        })
+        }
+        if database:
+            message_data['database'] = database
+
+        response = self.conn.send_message(MSG_QUERY, message_data)
         return response.get('documents', [])
 
     def batch_write(self, collection: str, documents: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -575,7 +595,8 @@ class NexaClient:
         collection: str,
         vector: List[float],
         limit: int = 10,
-        dimensions: int = 768
+        dimensions: int = 768,
+        database: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Vector similarity search.
@@ -585,6 +606,7 @@ class NexaClient:
             vector: Query vector
             limit: Max results (default: 10)
             dimensions: Vector dimensions (default: 768)
+            database: Optional database name (v3.0.0). If not specified, uses 'default'.
 
         Returns:
             List of similar documents with scores
@@ -593,22 +615,33 @@ class NexaClient:
             >>> results = db.vector_search('embeddings', [0.1, 0.2, ...], limit=5)
             >>> for r in results:
             ...     print(f"Similarity: {r['similarity']}, Doc: {r['document']}")
+
+            >>> # Search in specific database (v3.0.0)
+            >>> results = db.vector_search('movies', [0.8, 0.2, 0.9, 0.1], limit=5, dimensions=4, database='vector_test')
+            >>> print(f"Found {len(results)} similar movies")
         """
-        response = self.conn.send_message(MSG_VECTOR_SEARCH, {
+        message_data = {
             'collection': collection,
             'vector': vector,
             'limit': limit,
             'dimensions': dimensions
-        })
+        }
+        if database:
+            message_data['database'] = database
+
+        response = self.conn.send_message(MSG_VECTOR_SEARCH, message_data)
         return response.get('results', [])
 
     # ============================================================================
     # COLLECTION MANAGEMENT (like MySQL's SHOW TABLES, DROP TABLE)
     # ============================================================================
 
-    def list_collections(self) -> List[str]:
+    def list_collections(self, database: Optional[str] = None) -> List[str]:
         """
         List all collections (like MySQL's SHOW TABLES).
+
+        Args:
+            database: Optional database name (v3.0.0). If not specified, uses 'default'.
 
         Returns:
             List of collection names
@@ -617,16 +650,26 @@ class NexaClient:
             >>> collections = db.list_collections()
             >>> print(collections)
             ['users', 'products', 'orders']
+
+            >>> # List collections in a specific database (v3.0.0)
+            >>> collections = db.list_collections(database='production')
+            >>> print(collections)
+            ['orders', 'customers']
         """
-        response = self.conn.send_message(MSG_LIST_COLLECTIONS, {})
+        message_data = {}
+        if database:
+            message_data['database'] = database
+
+        response = self.conn.send_message(MSG_LIST_COLLECTIONS, message_data)
         return response.get('collections', [])
 
-    def drop_collection(self, name: str) -> bool:
+    def drop_collection(self, name: str, database: Optional[str] = None) -> bool:
         """
         Drop entire collection (like MySQL's DROP TABLE).
 
         Args:
             name: Collection name
+            database: Optional database name (v3.0.0). If not specified, uses 'default'.
 
         Returns:
             True if dropped successfully
@@ -634,11 +677,19 @@ class NexaClient:
         Example:
             >>> db.drop_collection('old_data')
             True
+
+            >>> # Drop collection from specific database (v3.0.0)
+            >>> db.drop_collection('temp_data', database='production')
+            True
         """
         try:
-            response = self.conn.send_message(MSG_DROP_COLLECTION, {
+            message_data = {
                 'collection': name
-            })
+            }
+            if database:
+                message_data['database'] = database
+
+            response = self.conn.send_message(MSG_DROP_COLLECTION, message_data)
             return response.get('message') == 'Collection dropped'
         except OperationError:
             return False
@@ -655,6 +706,86 @@ class NexaClient:
             >>> print(f"Total vectors: {vectors['total_vectors']}")
         """
         return self.conn.send_message(MSG_GET_VECTORS, {})
+
+    # ============================================================================
+    # DATABASE MANAGEMENT (v3.0.0 - Multi-Database Support)
+    # ============================================================================
+
+    def list_databases(self) -> List[str]:
+        """
+        List all databases (v3.0.0).
+
+        Returns:
+            List of database names
+
+        Example:
+            >>> databases = db.list_databases()
+            >>> print(databases)
+            ['default', 'production', 'staging']
+        """
+        response = self.conn.send_message(MSG_LIST_COLLECTIONS, {'database': True})
+        return response.get('databases', [])
+
+    def create_database(self, name: str) -> Dict[str, Any]:
+        """
+        Create new database (v3.0.0).
+
+        Args:
+            name: Database name
+
+        Returns:
+            Creation result
+
+        Example:
+            >>> db.create_database('production')
+            {'database': 'production', 'message': 'Database created'}
+        """
+        return self.conn.send_message(MSG_CREATE, {
+            'database': name,
+            'create_database': True
+        })
+
+    def drop_database(self, name: str) -> bool:
+        """
+        Drop entire database (v3.0.0).
+
+        Args:
+            name: Database name
+
+        Returns:
+            True if dropped successfully
+
+        Example:
+            >>> db.drop_database('old_db')
+            True
+        """
+        try:
+            response = self.conn.send_message(MSG_DROP_COLLECTION, {
+                'database': name,
+                'drop_database': True
+            })
+            return response.get('success', False)
+        except OperationError:
+            return False
+
+    def get_database_stats(self, name: str) -> Dict[str, Any]:
+        """
+        Get database statistics (v3.0.0).
+
+        Args:
+            name: Database name
+
+        Returns:
+            {'collections_count': int, 'documents_count': int, 'storage_bytes': int}
+
+        Example:
+            >>> stats = db.get_database_stats('production')
+            >>> print(f"Collections: {stats['collections_count']}")
+        """
+        return self.conn.send_message(MSG_COLLECTION_STATS, {
+            'database': name,
+            'get_database_stats': True
+        })
 
     # ============================================================================
     # TOON FORMAT (Token-Optimized Object Notation - 40-50% size reduction)

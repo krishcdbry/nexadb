@@ -10,10 +10,40 @@
 <body>
     <!-- Floating Header -->
     <div class="floating-header">
-        <button class="theme-switcher" onclick="toggleTheme()" title="Toggle theme">
-            <span id="themeIcon">☀️</span>
-        </button>
         <div style="display: flex; align-items: center; gap: 16px;">
+            <!-- Logo -->
+            <div style="display: flex; align-items: center; gap: 10px; padding-right: 16px;">
+                <img src="https://nexadb.io/logo-light.svg" alt="NexaDB" height="32" style="display: block;">
+                <!-- <div style="display: flex; flex-direction: column; line-height: 1.2;">
+                    <span style="font-size: 18px; font-weight: 800; color: var(--text-primary);">NexaDB</span>
+                    <span style="font-size: 10px; color: var(--text-tertiary); letter-spacing: 0.5px;">ADMIN PANEL</span>
+                </div> -->
+            </div>
+            <!-- <button class="theme-switcher" onclick="toggleTheme()" title="Toggle theme">
+                <span id="themeIcon">☀️</span>
+            </button> -->
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <!-- Database Selector with Quick Create (v3.0.0) -->
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <button id="databaseSelectorBtn" onclick="showDatabaseSelectionModal()" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 13px; cursor: pointer; min-width: 180px; transition: all 0.2s;" onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='var(--bg-secondary)'">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                    </svg>
+                    <span id="currentDatabaseName" style="flex: 1; text-align: left;">Default</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </button>
+                <button class="btn btn-sm btn-primary" onclick="showCreateDatabaseModal()" title="Create new database" style="padding: 6px 10px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"/>
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                </button>
+            </div>
             <div id="userInfo" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px;">
                 <div style="font-size: 13px; color: var(--text-secondary);" id="username">Loading...</div>
                 <div style="font-size: 11px; color: var(--text-tertiary); padding: 2px 6px; background: var(--bg-tertiary); border-radius: 4px;" id="userRole">...</div>
@@ -33,99 +63,86 @@
         </div>
     </div>
 
+    <!-- Horizontal Navigation Bar (v3.0.1 - New Layout) -->
+    <div class="horizontal-nav" id="horizontalNav">
+        <div class="horizontal-nav-item active" onclick="switchView('dashboard')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+            </svg>
+            <span>Dashboard</span>
+        </div>
+        <div class="horizontal-nav-item" onclick="switchView('query')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="16 18 22 12 16 6"/>
+                <polyline points="8 6 2 12 8 18"/>
+            </svg>
+            <span>Query Editor</span>
+        </div>
+        <div class="horizontal-nav-item" onclick="switchView('search')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
+            </svg>
+            <span>Vector Search</span>
+        </div>
+        <div class="horizontal-nav-item" onclick="switchView('monitoring')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            <span>Monitoring</span>
+        </div>
+        <div class="horizontal-nav-item" id="settingsNavItemHorizontal" onclick="switchView('settings')" style="display: none;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 1v6m0 6v6m0-13l4.24 4.24M16.24 16.24L12 12m0 0L7.76 7.76M7.76 16.24L12 12m9 0h-6m-6 0H3"/>
+            </svg>
+            <span>Settings</span>
+        </div>
+    </div>
+
     <!-- Main Container -->
     <div class="container">
-        <!-- Sidebar -->
+        <!-- Sidebar (v3.0.1 - Collections Only, Dashboard Tab Only) -->
         <div class="sidebar" id="sidebar">
-            <!-- Toggle Button -->
-            <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="15 18 9 12 15 6"/>
-                </svg>
-            </button>
-
             <!-- Logo -->
-            <div class="logo">
-                <div class="logo-icon">
-                    <img id="logoImage" src="https://nexadb.io/logo-light.svg" alt="NexaDB Logo">
-                </div>
+            <div class="logo" style="border-bottom: 1px solid var(--border-color); padding: 20px; display: flex; align-items: center; justify-content: center;">
+                <img src="https://nexadb.io/logo-light.svg" alt="NexaDB" height="32" style="display: block;">
             </div>
 
-            <!-- Navigation Menu -->
-            <div class="nav-menu">
-                <div class="nav-item active" onclick="switchView('dashboard')">
-                    <div class="nav-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="7" height="7" rx="1"/>
-                            <rect x="14" y="3" width="7" height="7" rx="1"/>
-                            <rect x="14" y="14" width="7" height="7" rx="1"/>
-                            <rect x="3" y="14" width="7" height="7" rx="1"/>
-                        </svg>
-                    </div>
-                    <span>Dashboard</span>
+            <!-- Collections Header -->
+            <div class="sidebar-section" style="margin-top: 16px;">
+                <div class="sidebar-header">
+                    <h3>Collections</h3>
+                    <button class="new-collection-btn" id="newCollectionBtn" onclick="showCreateCollectionModal()"">
+                        <span>+</span>
+                        <span>New</span>
+                    </button>
                 </div>
-                <div class="nav-item" onclick="switchView('collections')">
-                    <div class="nav-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-                            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-                        </svg>
-                    </div>
-                    <span>Collections</span>
-                </div>
-                <div class="nav-item" onclick="switchView('query')">
-                    <div class="nav-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="16 18 22 12 16 6"/>
-                            <polyline points="8 6 2 12 8 18"/>
-                        </svg>
-                    </div>
-                    <span>Query Editor</span>
-                </div>
-                <div class="nav-item" onclick="switchView('search')">
-                    <div class="nav-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <!-- Search Collections -->
+                <div style="padding: 12px">
+                    <div style="position: relative;">
+                        <input
+                            type="text"
+                            id="collectionSearchInput"
+                            placeholder="Search collections..."
+                            oninput="filterCollections()"
+                            style="width: 100%; padding: 8px 12px 8px 32px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 13px; outline: none; transition: border-color 0.2s;"
+                            onfocus="this.style.borderColor='var(--primary)'"
+                            onblur="this.style.borderColor='var(--border-color)'"
+                        >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); opacity: 0.4; pointer-events: none;">
                             <circle cx="11" cy="11" r="8"/>
                             <path d="m21 21-4.35-4.35"/>
                         </svg>
                     </div>
-                    <span>Vector Search</span>
                 </div>
-                <div class="nav-item" onclick="switchView('monitoring')">
-                    <div class="nav-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-                        </svg>
-                    </div>
-                    <span>Monitoring</span>
-                </div>
-                <div class="nav-item" id="usersNavItem" onclick="switchView('users')" style="display: none;">
-                    <div class="nav-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                            <circle cx="9" cy="7" r="4"/>
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                        </svg>
-                    </div>
-                    <span>Users</span>
-                </div>
-            </div>
-
-            <!-- Collections List (only visible in collections view) -->
-            <div id="sidebarCollections" style="display: none;">
-                <div class="sidebar-header">
-                    <h3>Collections</h3>
-                    <button class="new-collection-btn" id="newCollectionBtn" onclick="showCreateCollectionModal()">
-                        <span>+</span>
-                        <span>New Collection</span>
-                    </button>
-                    <input type="text" class="collection-search" placeholder="Search collections..." id="collectionSearch" oninput="filterCollections()">
-                </div>
-                <div class="collections-list" id="collectionsList">
-                    <div class="empty-collections">
-                        <div class="empty-collections-icon">📦</div>
-                        <p>No collections yet</p>
+                <div class="collection-list" id="collectionsList">
+                    <div class="empty-state" style="padding: 40px 20px; text-align: center;">
+                        <div style="font-size: 32px; margin-bottom: 12px; opacity: 0.3;">📦</div>
+                        <p style="font-size: 13px; color: var(--text-tertiary);">Loading collections...</p>
                     </div>
                 </div>
             </div>
@@ -133,93 +150,209 @@
 
         <!-- Main Content -->
         <div class="main-content">
-            <div class="content-header">
-                <div class="content-title">
-                    <h2 id="contentTitle">Dashboard</h2>
-                    <div class="content-subtitle" id="contentSubtitle">Overview of your database</div>
-                </div>
-                <div class="toolbar" id="toolbar" style="display: none;">
-                </div>
-            </div>
-
             <div class="content-area">
-                <!-- Dashboard View -->
+                <!-- Dashboard View (Enterprise v3.0.0) -->
                 <div id="dashboardView" class="view-container active">
-                    <div class="metrics-grid">
-                        <div class="metric-card">
-                            <div class="metric-header">
-                                <div class="metric-label">Documents</div>
-                                <div class="metric-icon" style="background: rgba(139, 92, 246, 0.15); color: var(--primary);">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                        <polyline points="14 2 14 8 20 8"/>
-                                        <line x1="16" y1="13" x2="8" y2="13"/>
-                                        <line x1="16" y1="17" x2="8" y2="17"/>
-                                        <polyline points="10 9 9 9 8 9"/>
-                                    </svg>
-                                </div>
-                            </div>
-                            <div class="metric-value" id="totalDocuments">0</div>
-                            <div class="metric-change positive" id="documentsChange">
-                                <span>↑ 0%</span>
-                                <span>from last hour</span>
-                            </div>
-                        </div>
 
-                        <div class="metric-card">
-                            <div class="metric-header">
-                                <div class="metric-label">Collections</div>
-                                <div class="metric-icon" style="background: rgba(99, 102, 241, 0.15); color: var(--secondary);">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-                                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-                                    </svg>
+                    <!-- Collection Documents View (v3.0.1 - Shown when collection is selected) -->
+                    <div id="dashboardCollectionView" style="display: none; margin-bottom: 24px;">
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <button class="btn btn-sm btn-secondary" onclick="closeDashboardCollection()" title="Back to dashboard">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="19" y1="12" x2="5" y2="12"/>
+                                            <polyline points="12 19 5 12 12 5"/>
+                                        </svg>
+                                    </button>
+                                    <div class="chart-title" id="dashboardCollectionTitle">Collection Documents</div>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <div class="search-mode-toggle">
+                                        <button class="mode-btn active" id="dashJsonViewBtn" onclick="setViewMode('json')">
+                                            JSON
+                                        </button>
+                                        <button class="mode-btn" id="dashTableViewBtn" onclick="setViewMode('table')">
+                                            Table
+                                        </button>
+                                    </div>
+                                    <button class="btn btn-sm btn-danger" id="deleteSelectedBtn" onclick="showBulkDeleteModal()" style="display: none;">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="3 6 5 6 21 6"/>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                        </svg>
+                                        <span id="deleteSelectedText">Delete Selected</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-success" id="addRecordBtnCollection" onclick="showInsertDocumentModal()" style="display: none;">
+                                        <span>+</span>
+                                        <span>Add Record</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-success" id="bulkAddBtnCollection" onclick="showBulkInsertModal()" title="Insert multiple documents from JSON array" style="display: none;">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                                            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                                            <path d="M12 11v6M9 14h6"/>
+                                        </svg>
+                                        <span>Bulk Add</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-secondary" onclick="loadDocuments()">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="23 4 23 10 17 10"/>
+                                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                        </svg>
+                                        <span>Refresh</span>
+                                    </button>
                                 </div>
                             </div>
-                            <div class="metric-value" id="totalCollections">0</div>
-                            <div class="metric-change" id="collectionsChange">
-                                <span>No change</span>
-                            </div>
-                        </div>
-
-                        <div class="metric-card">
-                            <div class="metric-header">
-                                <div class="metric-label">Storage</div>
-                                <div class="metric-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--success);">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <ellipse cx="12" cy="5" rx="9" ry="3"/>
-                                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
-                                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-                                    </svg>
+                            <div class="table-container" id="dashboardTableContainer">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">
+                                        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+                                            <rect x="4" y="3" width="16" height="18" rx="2"/>
+                                            <path d="M8 7h8M8 11h8M8 15h5"/>
+                                        </svg>
+                                    </div>
+                                    <h3>No documents found</h3>
+                                    <p>This collection is empty. Start by inserting your first document.</p>
+                                    <button class="btn btn-primary" onclick="showInsertDocumentModal()">
+                                        <span>+</span>
+                                        <span>Insert Document</span>
+                                    </button>
                                 </div>
                             </div>
-                            <div class="metric-value" id="totalStorage">0 KB</div>
-                            <div class="metric-change" id="storageChange">
-                                <span>Estimated size</span>
-                            </div>
-                        </div>
-
-                        <div class="metric-card">
-                            <div class="metric-header">
-                                <div class="metric-label">Operations</div>
-                                <div class="metric-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--warning);">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-                                    </svg>
+                            <div class="pagination" id="dashboardPagination" style="display: none;">
+                                <div class="pagination-info">
+                                    <span>Showing <span id="dashStartRecord">0</span>-<span id="dashEndRecord">0</span> of <span id="dashTotalRecords">0</span> documents</span>
                                 </div>
-                            </div>
-                            <div class="metric-value" id="totalOperations">0</div>
-                            <div class="metric-change positive" id="operationsChange">
-                                <span>Per minute</span>
+                                <div class="pagination-controls">
+                                    <button class="btn btn-sm btn-secondary" onclick="goToPage(1)" id="dashFirstPageBtn">First</button>
+                                    <button class="btn btn-sm btn-secondary" onclick="goToPage(state.currentPage - 1)" id="dashPrevPageBtn">Previous</button>
+                                    <div class="page-numbers" id="dashPageNumbers"></div>
+                                    <button class="btn btn-sm btn-secondary" onclick="goToPage(state.currentPage + 1)" id="dashNextPageBtn">Next</button>
+                                    <button class="btn btn-sm btn-secondary" onclick="goToPage(state.totalPages)" id="dashLastPageBtn">Last</button>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <label for="dashPageSize" style="font-size: 13px; color: var(--text-secondary);">Page size:</label>
+                                    <select id="dashPageSize" class="editor-select" onchange="changePageSize(this.value)" style="width: 80px;">
+                                        <option value="10">10</option>
+                                        <option value="25" selected>25</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Collections Overview Table -->
+                    <!-- <div class="chart-container" id="dashboardOverviewSection">
+                        <div class="chart-header">
+                            <div class="chart-title">Collections Overview</div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-sm btn-secondary" onclick="loadEnhancedDashboard()">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="23 4 23 10 17 10"/>
+                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                    </svg>
+                                </button>
+                                <button class="btn btn-sm btn-primary" onclick="switchView('collections')">
+                                    <span>View All</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="collectionsOverviewTable" style="overflow-x: auto;">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📦</div>
+                                <h3>No collections in this database</h3>
+                                <p>Create your first collection to start managing data</p>
+                                <button class="btn btn-primary" onclick="showCreateCollectionModal()">
+                                    <span>+</span>
+                                    <span>Create Collection</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div> -->
+
+                        <!-- Database Health Status -->
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                            <div class="chart-container">
+                                <div class="chart-header">
+                                    <div class="chart-title">System Health</div>
+                                    <span id="healthStatus" style="font-size: 12px; padding: 4px 12px; background: rgba(16, 185, 129, 0.15); color: var(--success); border-radius: 12px; font-weight: 600;">Healthy</span>
+                                </div>
+                                <div style="padding: 20px;">
+                                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-secondary); border-radius: 8px;">
+                                            <div style="font-size: 13px; color: var(--text-secondary);">Connection Status</div>
+                                            <div style="font-size: 14px; font-weight: 600; color: var(--success);" id="healthConnection">Active</div>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-secondary); border-radius: 8px;">
+                                            <div style="font-size: 13px; color: var(--text-secondary);">Binary Protocol</div>
+                                            <div style="font-size: 14px; font-weight: 600; color: var(--success);" id="healthBinary">Port 6970</div>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-secondary); border-radius: 8px;">
+                                            <div style="font-size: 13px; color: var(--text-secondary);">REST API</div>
+                                            <div style="font-size: 14px; font-weight: 600; color: var(--success);" id="healthRest">Port 6969</div>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-secondary); border-radius: 8px;">
+                                            <div style="font-size: 13px; color: var(--text-secondary);">Admin Panel</div>
+                                            <div style="font-size: 14px; font-weight: 600; color: var(--success);" id="healthAdmin">Port 9999</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+    
+                            <div class="chart-container">
+                                <div class="chart-header">
+                                    <div class="chart-title">Quick Actions</div>
+                                </div>
+                                <div style="padding: 20px;">
+                                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                                        <button class="btn btn-primary" id="quickActionCreateCollection" style="width: 100%; justify-content: center; display: none;" onclick="showCreateCollectionModal()">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                                <line x1="5" y1="12" x2="19" y2="12"/>
+                                            </svg>
+                                            <span>Create Collection</span>
+                                        </button>
+                                        <button class="btn btn-secondary" style="width: 100%; justify-content: center;" onclick="switchView('query')">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="16 18 22 12 16 6"/>
+                                                <polyline points="8 6 2 12 8 18"/>
+                                            </svg>
+                                            <span>Query Editor</span>
+                                        </button>
+                                        <button class="btn btn-secondary" style="width: 100%; justify-content: center;" onclick="switchView('search')">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="11" cy="11" r="8"/>
+                                                <path d="m21 21-4.35-4.35"/>
+                                            </svg>
+                                            <span>Vector Search</span>
+                                        </button>
+                                        <button class="btn btn-secondary" style="width: 100%; justify-content: center;" onclick="switchView('monitoring')">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                            </svg>
+                                            <span>Monitoring</span>
+                                        </button>
+                                        <button class="btn btn-secondary" id="quickActionSettings" style="width: 100%; justify-content: center; display: none;" onclick="switchView('settings')">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="12" cy="12" r="3"/>
+                                                <path d="M12 1v6m0 6v6m0-13l4.24 4.24M16.24 16.24L12 12m0 0L7.76 7.76M7.76 16.24L12 12m9 0h-6m-6 0H3"/>
+                                            </svg>
+                                            <span>Settings</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    <!-- Performance Chart -->
                     <div class="chart-container">
                         <div class="chart-header">
-                            <div class="chart-title">Operations Over Time</div>
+                            <div class="chart-title">Operations Timeline</div>
                             <div>
-                                <select class="editor-select" id="chartTimeRange" onchange="updateChart()">
+                                <select class="editor-select" id="chartTimeRange" onchange="updateOperationsChart()">
                                     <option value="1h">Last Hour</option>
                                     <option value="6h">Last 6 Hours</option>
                                     <option value="24h">Last 24 Hours</option>
@@ -227,27 +360,12 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="chart-canvas-wrapper">
+                        <div class="chart-canvas-wrapper" style="min-height: 250px;">
                             <canvas id="operationsChart"></canvas>
                         </div>
                     </div>
 
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <div class="chart-title">Recent Collections</div>
-                        </div>
-                        <div id="recentCollectionsList">
-                            <div class="empty-state">
-                                <div class="empty-state-icon">📦</div>
-                                <h3>No collections yet</h3>
-                                <p>Create your first collection to get started</p>
-                                <button class="btn btn-primary" onclick="showCreateCollectionModal()">
-                                    <span>+</span>
-                                    <span>Create Collection</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                
                 </div>
 
                 <!-- Collections View -->
@@ -311,6 +429,14 @@
                                 <button class="btn btn-sm btn-success" id="addRecordBtn" onclick="showInsertDocumentModal()">
                                     <span>+</span>
                                     <span>Add Record</span>
+                                </button>
+                                <button class="btn btn-sm btn-success" id="bulkAddBtn" onclick="showBulkInsertModal()" title="Insert multiple documents from JSON array">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                                        <path d="M12 11v6M9 14h6"/>
+                                    </svg>
+                                    <span>Bulk Add</span>
                                 </button>
                                 <button class="btn btn-sm btn-primary" onclick="exportToTOON()" title="Export collection to TOON format (40-50% token reduction)">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -469,20 +595,24 @@ Or use aggregation pipeline:
                                             <button class="mode-btn active" id="resultJsonBtn" onclick="setResultFormat('json')">
                                                 JSON
                                             </button>
+                                            <button class="mode-btn" id="resultCompactBtn" onclick="setResultFormat('compact')">
+                                                Compact
+                                            </button>
                                             <button class="mode-btn" id="resultToonBtn" onclick="setResultFormat('toon')">
-                                                TOON
+                                                Toon
                                             </button>
                                         </div>
-                                        <button class="btn-secondary" onclick="copyResults()" style="padding: 8px 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                                        <button class="btn-secondary" onclick="exportQueryResults()" style="padding: 8px 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                                <polyline points="7 10 12 15 17 10"/>
+                                                <line x1="12" y1="15" x2="12" y2="3"/>
                                             </svg>
-                                            Copy
+                                            Export
                                         </button>
                                     </div>
                                 </div>
-                                <div class="results-content results-editor" id="editorResultsContent"></div>
+                                <div class="results-content" id="editorResultsContent"></div>
                                 <div id="editorToonStats" style="display: none; padding: 16px; background: var(--bg-secondary); border-top: 1px solid var(--border-color); border-radius: 0 0 12px 12px;">
                                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
                                         <div>
@@ -660,19 +790,30 @@ Tip: Get vectors from OpenAI embeddings, Sentence Transformers, or other embeddi
 
                             <div class="editor-results" id="searchResults" style="display: none;">
                                 <div class="results-header" style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>Search Results</span>
-                                    <div style="display: flex; gap: 12px; align-items: center;">
+                                    <div style="display: flex; align-items: center; gap: 16px;">
+                                        <span>Search Results</span>
                                         <span id="searchResultsCount" style="font-size: 13px; color: var(--text-tertiary);"></span>
-                                        <button class="btn-secondary" onclick="copySearchResults()" style="padding: 8px 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                                    </div>
+                                    <div style="display: flex; gap: 12px; align-items: center;">
+                                        <div class="search-mode-toggle">
+                                            <button class="mode-btn active" id="searchTreeViewBtn" onclick="setSearchViewMode('tree')">
+                                                Tree Structure
+                                            </button>
+                                            <button class="mode-btn" id="searchToonViewBtn" onclick="setSearchViewMode('toon')">
+                                                TOON
+                                            </button>
+                                        </div>
+                                        <button class="btn-secondary" onclick="exportSearchResults()" style="padding: 8px 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                                <polyline points="7 10 12 15 17 10"/>
+                                                <line x1="12" y1="15" x2="12" y2="3"/>
                                             </svg>
-                                            Copy
+                                            Export
                                         </button>
                                     </div>
                                 </div>
-                                <div class="results-content results-editor" id="searchResultsContent"></div>
+                                <div class="results-content" id="searchResultsContent"></div>
                             </div>
                         </div>
                     </div>
@@ -716,6 +857,373 @@ Tip: Get vectors from OpenAI embeddings, Sentence Transformers, or other embeddi
                         </div>
                     </div>
                 </div>
+
+                <!-- Databases View (NEW v3.0.0) -->
+                <div id="databasesView" class="view-container">
+                    <div class="table-browser">
+                        <div class="table-toolbar">
+                            <div class="table-actions">
+                                <h3 style="margin: 0; font-size: 18px; color: var(--text-primary);">Database Management</h3>
+                            </div>
+                            <div class="table-actions">
+                                <button class="btn btn-sm btn-success" onclick="showCreateDatabaseModal()">
+                                    <span>+</span>
+                                    <span>Create Database</span>
+                                </button>
+                                <button class="btn btn-sm btn-secondary" onclick="loadDatabasesList()">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="23 4 23 10 17 10"/>
+                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                    </svg>
+                                    <span>Refresh</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="table-container" id="databasesTableContainer">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">
+                                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+                                        <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                                    </svg>
+                                </div>
+                                <h3>Loading databases...</h3>
+                                <p>Fetching database list</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings View (NEW v3.0.0 Enterprise) -->
+                <div id="settingsView" class="view-container">
+                    <!-- Settings Tabs -->
+                    <div style="border-bottom: 1px solid var(--border-color); margin-bottom: 24px;">
+                        <div style="display: flex; gap: 4px; padding: 0 4px;">
+                            <button class="editor-tab active" id="settingsTabDatabases" onclick="switchSettingsTab('databases')" style="padding: 12px 20px; font-size: 14px;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px; vertical-align: middle;">
+                                    <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                                    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                                </svg>
+                                Database Management
+                            </button>
+                            <button class="editor-tab" id="settingsTabUsers" onclick="switchSettingsTab('users')" style="padding: 12px 20px; font-size: 14px;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px; vertical-align: middle;">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="9" cy="7" r="4"/>
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                                </svg>
+                                User Management (RBAC)
+                            </button>
+                            <button class="editor-tab" id="settingsTabMonitoring" onclick="switchSettingsTab('monitoring')" style="padding: 12px 20px; font-size: 14px;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px; vertical-align: middle;">
+                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                </svg>
+                                Overall Monitoring
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Database Management Tab Content -->
+                    <div id="settingsContentDatabases" class="settings-tab-content" style="display: block;">
+                        <div class="table-browser">
+                            <div class="table-toolbar">
+                                <div class="table-actions">
+                                    <h3 style="margin: 0; font-size: 18px; color: var(--text-primary);">Database Management</h3>
+                                    <p style="margin: 4px 0 0 0; font-size: 13px; color: var(--text-tertiary);">Create, manage, and monitor all databases</p>
+                                </div>
+                                <div class="table-actions">
+                                    <button class="btn btn-sm btn-success" onclick="showCreateDatabaseModal()">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="12" y1="5" x2="12" y2="19"/>
+                                            <line x1="5" y1="12" x2="19" y2="12"/>
+                                        </svg>
+                                        <span>Create Database</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-secondary" onclick="loadDatabasesList()">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="23 4 23 10 17 10"/>
+                                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                        </svg>
+                                        <span>Refresh</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="table-container" id="settingsDatabasesTableContainer">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">
+                                        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+                                            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                                            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                                            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                                        </svg>
+                                    </div>
+                                    <h3>Loading databases...</h3>
+                                    <p>Fetching database list</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- User Management (RBAC) Tab Content -->
+                    <div id="settingsContentUsers" class="settings-tab-content" style="display: none;">
+                        <div class="table-browser">
+                            <div class="table-toolbar">
+                                <div class="table-actions">
+                                    <h3 style="margin: 0; font-size: 18px; color: var(--text-primary);">User Management & RBAC</h3>
+                                    <p style="margin: 4px 0 0 0; font-size: 13px; color: var(--text-tertiary);">Manage users, roles, and database permissions</p>
+                                </div>
+                                <div class="table-actions">
+                                    <button class="btn btn-sm btn-success" onclick="showCreateUserModal()">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="12" y1="5" x2="12" y2="19"/>
+                                            <line x1="5" y1="12" x2="19" y2="12"/>
+                                        </svg>
+                                        <span>Create User</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-secondary" onclick="loadUsers()">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="23 4 23 10 17 10"/>
+                                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                        </svg>
+                                        <span>Refresh</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="table-container" id="settingsUsersTableContainer">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">
+                                        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity="0.3">
+                                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                            <circle cx="9" cy="7" r="4"/>
+                                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                                        </svg>
+                                    </div>
+                                    <h3>Loading users...</h3>
+                                    <p>Fetching user list from database</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Overall Monitoring Tab Content -->
+                    <div id="settingsContentMonitoring" class="settings-tab-content" style="display: none;">
+                        <h3 style="margin: 0 0 20px 0; font-size: 18px; color: var(--text-primary);">System-Wide Monitoring</h3>
+                        <p style="margin: -12px 0 24px 0; font-size: 13px; color: var(--text-tertiary);">Monitor all databases, connections, and system health</p>
+
+                        <!-- System Health Overview -->
+                        <div class="metrics-grid" style="margin-bottom: 24px;">
+                            <div class="metric-card">
+                                <div class="metric-header">
+                                    <div class="metric-label">Total Databases</div>
+                                    <div class="metric-icon" style="background: rgba(139, 92, 246, 0.15); color: var(--primary);">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                                            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                                            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="metric-value" id="systemTotalDatabases">0</div>
+                                <div class="metric-change">
+                                    <span>Active databases</span>
+                                </div>
+                            </div>
+
+                            <div class="metric-card">
+                                <div class="metric-header">
+                                    <div class="metric-label">Total Collections</div>
+                                    <div class="metric-icon" style="background: rgba(99, 102, 241, 0.15); color: var(--secondary);">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                                            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="metric-value" id="systemTotalCollections">0</div>
+                                <div class="metric-change">
+                                    <span>Across all databases</span>
+                                </div>
+                            </div>
+
+                            <div class="metric-card">
+                                <div class="metric-header">
+                                    <div class="metric-label">Total Users</div>
+                                    <div class="metric-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--success);">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                            <circle cx="9" cy="7" r="4"/>
+                                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="metric-value" id="systemTotalUsers">0</div>
+                                <div class="metric-change">
+                                    <span>Registered users</span>
+                                </div>
+                            </div>
+
+                            <div class="metric-card">
+                                <div class="metric-header">
+                                    <div class="metric-label">System Status</div>
+                                    <div class="metric-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--success);">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                            <polyline points="22 4 12 14.01 9 11.01"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="metric-value" style="font-size: 24px; color: var(--success);" id="systemStatus">Healthy</div>
+                                <div class="metric-change positive">
+                                    <span>All services running</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Services Status -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <div class="chart-title">Services Status</div>
+                            </div>
+                            <div style="padding: 20px;">
+                                <div style="display: flex; flex-direction: column; gap: 16px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px;">
+                                        <div>
+                                            <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">Binary Protocol Server</div>
+                                            <div style="font-size: 12px; color: var(--text-tertiary);">MessagePack protocol for high-performance queries</div>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span style="font-size: 12px; padding: 4px 10px; background: rgba(16, 185, 129, 0.15); color: var(--success); border-radius: 12px; font-weight: 600;">Port 6970</span>
+                                            <span style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></span>
+                                        </div>
+                                    </div>
+
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px;">
+                                        <div>
+                                            <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">REST API Server</div>
+                                            <div style="font-size: 12px; color: var(--text-tertiary);">JSON API for web applications and integrations</div>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span style="font-size: 12px; padding: 4px 10px; background: rgba(16, 185, 129, 0.15); color: var(--success); border-radius: 12px; font-weight: 600;">Port 6969</span>
+                                            <span style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></span>
+                                        </div>
+                                    </div>
+
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px;">
+                                        <div>
+                                            <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">Admin Panel</div>
+                                            <div style="font-size: 12px; color: var(--text-tertiary);">Web-based management interface</div>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span style="font-size: 12px; padding: 4px 10px; background: rgba(16, 185, 129, 0.15); color: var(--success); border-radius: 12px; font-weight: 600;">Port 9999</span>
+                                            <span style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <div class="chart-title">Quick Actions</div>
+                            </div>
+                            <div style="padding: 20px;">
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                                    <button class="btn btn-secondary" style="width: 100%; justify-content: center;" onclick="switchView('dashboard')">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="3" y="3" width="7" height="7" rx="1"/>
+                                            <rect x="14" y="3" width="7" height="7" rx="1"/>
+                                            <rect x="14" y="14" width="7" height="7" rx="1"/>
+                                            <rect x="3" y="14" width="7" height="7" rx="1"/>
+                                        </svg>
+                                        <span>View Dashboard</span>
+                                    </button>
+                                    <button class="btn btn-secondary" style="width: 100%; justify-content: center;" onclick="switchView('monitoring')">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                        </svg>
+                                        <span>Current DB Monitoring</span>
+                                    </button>
+                                    <button class="btn btn-secondary" style="width: 100%; justify-content: center;" onclick="showCreateDatabaseModal()">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="12" y1="5" x2="12" y2="19"/>
+                                            <line x1="5" y1="12" x2="19" y2="12"/>
+                                        </svg>
+                                        <span>Create Database</span>
+                                    </button>
+                                    <button class="btn btn-secondary" style="width: 100%; justify-content: center;" onclick="showCreateUserModal()">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="12" y1="5" x2="12" y2="19"/>
+                                            <line x1="5" y1="12" x2="19" y2="12"/>
+                                        </svg>
+                                        <span>Create User</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Database Modal (NEW v3.0.0) -->
+    <div class="modal-overlay" id="createDatabaseModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Create New Database</h3>
+                <button class="modal-close" onclick="closeModal('createDatabaseModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Database Name *</label>
+                    <input type="text" class="form-input" id="newDatabaseName" placeholder="e.g., production, staging">
+                    <p class="form-hint">Use lowercase with underscores (e.g., user_data)</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('createDatabaseModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="createDatabase()">Create Database</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drop Database Modal (NEW v3.0.0) -->
+    <div class="modal-overlay" id="dropDatabaseModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Drop Database</h3>
+                <button class="modal-close" onclick="closeModal('dropDatabaseModal'); clearDropDatabaseInput();">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="padding: 8px 16px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; margin-bottom: 24px;">
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                        <div style="color: var(--danger); font-size: 24px; line-height: 1;">⚠️</div>
+                        <div>
+                            <div style="font-weight: 700; color: var(--danger); margin-bottom: 4px;">Warning: This action cannot be undone!</div>
+                            <div style="font-size: 14px; color: var(--text-secondary);">
+                                You are about to permanently delete the database "<strong id="dropDatabaseName"></strong>" and ALL of its collections and documents.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Type <strong>DELETE</strong> to confirm *</label>
+                    <input type="text" class="form-input" id="dropDatabaseConfirmInput" placeholder="Type DELETE to confirm" autocomplete="off">
+                    <p class="form-hint">This action is permanent and cannot be reversed</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('dropDatabaseModal'); clearDropDatabaseInput();">Cancel</button>
+                <button class="btn btn-danger" id="dropDatabaseBtn" onclick="confirmDropDatabase()" disabled>Drop Database</button>
             </div>
         </div>
     </div>
@@ -874,6 +1382,68 @@ Tip: Get vectors from OpenAI embeddings, Sentence Transformers, or other embeddi
         </div>
     </div>
 
+    <!-- User Database Permissions Modal (NEW v3.0.0) -->
+    <div class="modal-overlay" id="userDatabasePermissionsModal">
+        <div class="modal" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>Database Permissions for <span id="permissionsUsername"></span></h3>
+                <button class="modal-close" onclick="closeModal('userDatabasePermissionsModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="padding: 12px 16px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 20px;">
+                    <div style="font-size: 13px; color: var(--text-secondary);">
+                        Database permissions allow users to access specific databases with different permission levels (read, write, or admin) independent of their global role.
+                    </div>
+                </div>
+
+                <div id="databasePermissionsList">
+                    <!-- Permissions list will be loaded here -->
+                </div>
+
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                    <button class="btn btn-primary" onclick="showGrantDatabaseAccessModal()">
+                        + Grant Database Access
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('userDatabasePermissionsModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grant Database Access Modal (NEW v3.0.0) -->
+    <div class="modal-overlay" id="grantDatabaseAccessModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Grant Database Access to <span id="grantAccessUsername"></span></h3>
+                <button class="modal-close" onclick="closeModal('grantDatabaseAccessModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Database *</label>
+                    <select class="form-input" id="grantAccessDatabase">
+                        <option value="">Select database...</option>
+                    </select>
+                    <p class="form-hint">Choose the database to grant access to</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Permission Level *</label>
+                    <select class="form-input" id="grantAccessPermission">
+                        <option value="read">Read - Query and view data</option>
+                        <option value="write">Write - Insert, update, delete</option>
+                        <option value="admin">Admin - Full access including collection management</option>
+                    </select>
+                    <p class="form-hint">Defines what operations the user can perform on this database</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('grantDatabaseAccessModal')">Cancel</button>
+                <button class="btn btn-success" onclick="grantDatabaseAccess()">Grant Access</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Create Collection Modal -->
     <div class="modal-overlay" id="createCollectionModal">
         <div class="modal">
@@ -983,6 +1553,36 @@ Tip: Get vectors from OpenAI embeddings, Sentence Transformers, or other embeddi
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal('deleteCollectionModal'); clearDeleteInput();">Cancel</button>
                 <button class="btn btn-danger" id="deleteCollectionBtn" onclick="confirmDeleteCollection()" disabled>Delete Collection</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Insert Modal -->
+    <div class="modal-overlay" id="bulkInsertModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Bulk Insert Documents</h3>
+                <button class="modal-close" onclick="closeModal('bulkInsertModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Documents Array (JSON) *</label>
+                    <textarea class="form-input" id="bulkInsertData" rows="15" placeholder='[\n  {\n    "name": "Alice",\n    "age": 28,\n    "email": "alice@example.com"\n  },\n  {\n    "name": "Bob",\n    "age": 35,\n    "email": "bob@example.com"\n  },\n  {\n    "name": "Charlie",\n    "age": 42,\n    "email": "charlie@example.com"\n  }\n]'></textarea>
+                    <p class="form-hint">Enter a JSON array of objects. Each object will be inserted as a separate document.</p>
+                </div>
+                <div id="bulkInsertProgress" style="display: none; margin-top: 12px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-size: 13px; color: var(--text-secondary);">Inserting documents...</span>
+                        <span style="font-size: 13px; color: var(--text-secondary);" id="bulkInsertProgressText">0 / 0</span>
+                    </div>
+                    <div style="background: var(--bg-tertiary); border-radius: 8px; height: 8px; overflow: hidden;">
+                        <div id="bulkInsertProgressBar" style="background: var(--primary); height: 100%; width: 0%; transition: width 0.3s;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('bulkInsertModal')" id="bulkInsertCancelBtn">Cancel</button>
+                <button class="btn btn-success" onclick="executeBulkInsert()" id="bulkInsertBtn">Insert All Documents</button>
             </div>
         </div>
     </div>
@@ -1108,11 +1708,70 @@ Tip: Get vectors from OpenAI embeddings, Sentence Transformers, or other embeddi
         </div>
     </div>
 
+    <!-- Database Selection Modal (Required on First Load) - v3.0.1 -->
+    <div class="modal-overlay" id="selectDatabaseModal" style="display: none; z-index: 10000;">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header" style="border-bottom: 2px solid var(--primary);">
+                <h3 style="display: flex; align-items: center; gap: 12px;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                    </svg>
+                    <span>Select Database</span>
+                </h3>
+            </div>
+            <div class="modal-body">
+                <div style="padding: 12px 16px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                        <div style="color: var(--primary); font-size: 20px; line-height: 1;">💡</div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                                Database Selection Required
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+                                Please select a database to continue. All collections and data are organized within databases.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Search Databases</label>
+                    <div style="position: relative;">
+                        <input type="text" class="form-input" id="databaseSearchInput" placeholder="Type to search databases..." oninput="filterDatabaseList()" autocomplete="off" style="padding-left: 38px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); pointer-events: none;">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="m21 21-4.35-4.35"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Available Databases</label>
+                    <div id="databaseSelectionList" style="display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto;">
+                        <!-- Database options will be populated here -->
+                        <div style="text-align: center; padding: 40px 20px; color: var(--text-tertiary);">
+                            <div style="font-size: 14px; margin-bottom: 8px;">Loading databases...</div>
+                            <div style="font-size: 12px;">Please wait</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="padding: 12px 16px; background: var(--bg-secondary); border-radius: 8px; margin-top: 16px;">
+                    <div style="font-size: 11px; color: var(--text-tertiary); line-height: 1.5;">
+                        <strong>Tip:</strong> You can create new databases from the Settings → Database Management section after selecting your initial database.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
 
     <script src="js/auth.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/app.js?v=1764460271"></script>
 </body>
 </html>

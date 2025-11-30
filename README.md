@@ -2,13 +2,14 @@
 
 <div align="center">
 
-**A lightweight NoSQL database with vector search, TOON format, and enterprise security built-in**
+**A lightweight NoSQL database with multi-database support, vector search, TOON format, and enterprise security**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Node.js 14+](https://img.shields.io/badge/node-14+-green.svg)](https://nodejs.org/)
+[![Version](https://img.shields.io/badge/version-3.0.0-green.svg)](https://github.com/krishcdbry/nexadb/releases/tag/v3.0.0)
 
-[Quick Start](#quick-start) • [Features](FEATURES.md) • [Performance](PERFORMANCE.md) • [Benchmarks](BENCHMARK_RESULTS.md) • [TOON Format](#toon-format) • [Admin Panel](#admin-panel)
+[Quick Start](#quick-start) • [NotesApp Demo](examples/NotesApp) • [Features](FEATURES.md) • [Performance](PERFORMANCE.md) • [Benchmarks](BENCHMARK_RESULTS.md) • [TOON Format](#toon-format) • [Admin Panel](#admin-panel)
 
 </div>
 
@@ -17,15 +18,17 @@
 ## 🚀 What is NexaDB?
 
 NexaDB is a **production-ready, high-performance NoSQL database** built for AI developers with:
+- 🗄️ **Multi-database architecture** (v3.0.0) - Isolated databases for multi-tenancy, staging/production separation
 - 🎯 **Vector search** for semantic similarity (RAG, recommendations)
 - 📦 **TOON format** support (40-50% fewer LLM tokens)
-- ⚡ **Binary protocol** (10x faster than REST)
-- 🎨 **Beautiful admin panel** with TOON export
+- ⚡ **MessagePack binary protocol** (10x faster than REST)
+- 🎨 **Enhanced admin panel** with 25 API endpoints (v3.0.0)
 - 🏗️ **Production-grade performance** (25K+ ops/sec @ 1M scale via binary protocol, 124K+ via direct API)
 - 🚀 **High-performance storage** (LSM-Tree with Bloom filters, dual MemTable, WAL batching)
 
 **Perfect for:**
 - 🤖 AI/ML applications and RAG systems
+- 🏢 Multi-tenant SaaS applications (NEW in v3.0.0)
 - 🔍 Semantic search and recommendations
 - 📊 Real-time analytics and dashboards
 - 🔌 Microservices and APIs
@@ -33,9 +36,48 @@ NexaDB is a **production-ready, high-performance NoSQL database** built for AI d
 - 💰 Reducing LLM API costs by 40-50%
 - 📈 Small-to-medium datasets (1K to 1M documents)
 
+**[➡️ See NotesApp Example](examples/NotesApp)** - Production-ready full-stack app showcasing all features
+
 ---
 
 ## ✨ Features
+
+### 🗄️ Multi-Database Architecture (v3.0.0)
+
+**Isolate data across multiple databases in a single NexaDB instance:**
+- Create and manage multiple independent databases
+- Complete data isolation between databases
+- Perfect for multi-tenant SaaS applications
+- Staging/production environment separation
+- Per-database collection management
+
+**Quick Example:**
+```python
+from nexaclient import NexaClient
+
+client = NexaClient()
+client.connect()
+
+# Create separate databases for different tenants
+client.create_database('tenant_acme')
+client.create_database('tenant_globex')
+
+# Each tenant has isolated data
+client.insert('users', {'name': 'Alice'}, database='tenant_acme')
+client.insert('users', {'name': 'Bob'}, database='tenant_globex')
+
+# Queries are scoped to specific database
+acme_users = client.query('users', database='tenant_acme')  # Returns only Alice
+globex_users = client.query('users', database='tenant_globex')  # Returns only Bob
+
+# List all databases
+databases = client.list_databases()
+print(f"Total databases: {len(databases)}")
+
+# Get database statistics
+stats = client.get_database_stats('tenant_acme')
+print(f"Collections: {stats['num_collections']}, Documents: {stats['total_documents']}")
+```
 
 ### 🎯 Built-in Vector Search
 
@@ -47,33 +89,36 @@ NexaDB is a **production-ready, high-performance NoSQL database** built for AI d
 
 **Quick Example:**
 ```python
-from nexadb_client import NexaClient
+from nexaclient import NexaClient
 
 client = NexaClient()
 client.connect()
 
-# Store movies with semantic vectors [action, romance, sci-fi, drama]
-movies = [
-    {
-        'title': 'The Matrix',
-        'year': 1999,
-        'vector': [0.9, 0.15, 0.97, 0.5]  # High action + sci-fi
-    },
-    {
-        'title': 'The Notebook',
-        'year': 2004,
-        'vector': [0.1, 0.98, 0.05, 0.85]  # Very high romance
-    }
-]
+# Create a vector collection
+client.create_collection('movies', database='default', vector_dimensions=4)
 
-client.batch_write('movies', movies)
+# Store movies with semantic vectors [action, romance, sci-fi, drama]
+client.insert('movies', {
+    'title': 'The Matrix',
+    'year': 1999,
+    'vector': [0.9, 0.15, 0.97, 0.5]  # High action + sci-fi
+}, database='default')
+
+client.insert('movies', {
+    'title': 'The Notebook',
+    'year': 2004,
+    'vector': [0.1, 0.98, 0.05, 0.85]  # Very high romance
+}, database='default')
+
+# Build HNSW index for fast search
+client.build_hnsw_index('movies', database='default')
 
 # Find sci-fi movies
 results = client.vector_search(
     collection='movies',
-    vector=[0.5, 0.2, 0.98, 0.5],  # Sci-fi query
+    query_vector=[0.5, 0.2, 0.98, 0.5],  # Sci-fi query
     limit=3,
-    dimensions=4
+    database='default'
 )
 
 # Results show semantic similarity!
@@ -438,6 +483,60 @@ client.disconnect()
 ```bash
 python3 demo_vector_search.py
 ```
+
+---
+
+## 🎯 Production Examples
+
+### NotesApp - Full-Stack Note-Taking App
+
+**[➡️ examples/NotesApp](examples/NotesApp)** - Production-ready note-taking application with beautiful UI
+
+![NotesApp](examples/NotesApp/preview.png)
+
+**Stack:** FastAPI + React + TypeScript + Tailwind CSS + NexaDB Binary Protocol
+
+**Features:**
+- ⚡ **10x faster** performance with MessagePack binary protocol
+- 🎯 **AI-powered semantic search** - Find notes by meaning, not keywords
+- 🎨 **Modern three-column UI** - Notion-inspired design with glass morphism
+- ⌨️ **Keyboard shortcuts** - ⌘K for search, ⌘N for new note, Escape to clear
+- 📦 **Complete CRUD operations** - Create, read, update, delete, archive
+- 🏷️ **Tag management** - Organize notes with tags and tag-based filtering
+- 📊 **Real-time statistics** - Dashboard with note count and metrics
+- 🔍 **Dual search modes** - Text search and vector-based semantic search
+- 🌈 **Smooth animations** - Fade-in, slide-in effects throughout
+- 📱 **Responsive design** - Works beautifully on all screen sizes
+
+**Try it now:**
+```bash
+# Start NexaDB
+nexadb start
+
+# Start NotesApp API (Terminal 1)
+cd examples/NotesApp
+python3 main.py
+
+# Start NotesApp UI (Terminal 2)
+cd examples/NotesApp/ui
+npm install
+npm run dev
+
+# Open http://localhost:5174
+```
+
+**[📖 Full NotesApp Documentation](examples/NotesApp/README.md)**
+
+### Other Framework Examples
+
+Explore NexaDB integrations with popular frameworks:
+
+- **[Express.js Example](examples/express-example)** - Node.js REST API with NexaDB
+- **[Flask Example](examples/flask-example)** - Python Flask API integration
+- **[FastAPI Example](examples/fastapi-example)** - Modern Python async API
+- **[NestJS Example](examples/nestjs-example)** - Enterprise TypeScript framework
+
+More examples coming soon: Next.js, Django, Spring Boot, and more!
 
 ---
 
@@ -930,9 +1029,9 @@ NexaDB uses a custom binary protocol built on MessagePack for maximum performanc
 
 ---
 
-## 🏗️ Architecture v2.0
+## 🏗️ Architecture v3.0.0
 
-**Single Source of Truth** - All interfaces connect to one binary server:
+**Multi-Database Support with Single Source of Truth** - All interfaces connect to one binary server:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -1053,7 +1152,7 @@ python3 admin_server.py --port 9999 --data-dir ./nexadb_data
 
 - [x] LSM-Tree storage engine
 - [x] Binary protocol with MessagePack
-- [x] Connection pooling (100 concurrent connections)
+- [x] Connection pooling (1000+ concurrent connections)
 - [x] JSON document storage
 - [x] MongoDB-style queries
 - [x] Aggregation pipeline
@@ -1072,24 +1171,29 @@ python3 admin_server.py --port 9999 --data-dir ./nexadb_data
 - [x] **Rust CLI** (`nexa -u root -p`) - Zero-dependency, cross-platform 🦀
 - [x] **Cloud deployment** (Railway, Render, Fly.io) ☁️
 - [x] Production-grade NexaClient with reconnection
-- [x] **🚀 Production Optimizations (v2.0):**
-  - [x] Batch WAL writes (10x write throughput)
-  - [x] 256MB MemTable (configurable)
-  - [x] LRU cache for hot reads
-  - [x] Secondary B-Tree indexes
-  - [x] Multi-threaded compaction
-  - [x] Cost-based query optimizer
-  - [x] Comprehensive test suite
-  - [x] Production benchmarks
+- [x] **🚀 v3.0.0 Multi-Database & Enterprise Features:**
+  - [x] Multi-database architecture with complete data isolation
+  - [x] Database-level CRUD operations (create, drop, list, stats)
+  - [x] Enhanced Python client (nexaclient) with multi-database support
+  - [x] Admin panel with 25 working API endpoints
+  - [x] Session-based authentication
+  - [x] User management and database permissions
+  - [x] 98/98 tests passing (100% pass rate)
+  - [x] HNSW index building with configurable parameters
+  - [x] Multi-database vector search isolation
+  - [x] Comprehensive test suite and benchmarks
 
-### 🚧 In Progress
+### 🚧 In Progress (v3.1.0 - Cloud Version)
 
+- [ ] HTTP REST API (16 endpoints for cloud deployments)
+- [ ] Enhanced authentication system
+- [ ] Rate limiting
 - [ ] Full-text search (inverted index)
-- [ ] Replication support (master-slave)
 
-### 🔮 Future
+### 🔮 Future (v3.2.0+)
 
 - [ ] Replication and clustering
+- [ ] Backup and restore functionality
 - [ ] GraphQL API
 - [ ] Time-series optimization
 - [ ] Kubernetes operator

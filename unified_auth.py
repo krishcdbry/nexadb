@@ -19,6 +19,8 @@ import json
 import os
 import secrets
 import time
+import tempfile
+import fcntl
 from typing import Dict, Any, Optional
 
 
@@ -70,10 +72,62 @@ class UnifiedAuthManager:
             print(f"[AUTH] ⚠️  CHANGE PASSWORD IN PRODUCTION!")
 
     def save_users(self):
-        """Save users to disk."""
+        """
+        Save users to disk with atomic write and validation.
+
+        CRITICAL: This method MUST prevent data corruption at ALL costs.
+        Uses atomic writes with validation to ensure data integrity.
+        """
         os.makedirs(self.data_dir, exist_ok=True)
-        with open(self.users_file, 'w') as f:
-            json.dump(self.users, f, indent=2)
+
+        # Step 1: Validate JSON before writing (catch corruption BEFORE it hits disk)
+        try:
+            json_data = json.dumps(self.users, indent=2)
+            # Validate by parsing it back
+            json.loads(json_data)
+        except (TypeError, ValueError) as e:
+            raise RuntimeError(f"CRITICAL: Data validation failed before write - data is corrupted in memory: {e}")
+
+        # Step 2: Atomic write using temporary file
+        # Write to temp file first, then rename (atomic operation)
+        temp_fd, temp_path = tempfile.mkstemp(
+            dir=self.data_dir,
+            prefix='.users_',
+            suffix='.json.tmp'
+        )
+
+        try:
+            with os.fdopen(temp_fd, 'w') as temp_file:
+                # Acquire exclusive lock to prevent concurrent writes
+                fcntl.flock(temp_file.fileno(), fcntl.LOCK_EX)
+
+                try:
+                    # Write validated JSON to temp file
+                    temp_file.write(json_data)
+                    temp_file.flush()
+                    os.fsync(temp_file.fileno())  # Force write to disk
+
+                finally:
+                    # Release lock
+                    fcntl.flock(temp_file.fileno(), fcntl.LOCK_UN)
+
+            # Step 3: Validate the written file by reading it independently
+            with open(temp_path, 'r') as validation_file:
+                try:
+                    validation_data = json.load(validation_file)
+                    if not isinstance(validation_data, dict):
+                        raise ValueError("Written data is not a valid dictionary")
+                except (json.JSONDecodeError, ValueError) as e:
+                    raise RuntimeError(f"CRITICAL: Written file validation failed: {e}")
+
+            # Step 4: Atomic rename (this is atomic on POSIX systems)
+            os.replace(temp_path, self.users_file)
+
+        except Exception as e:
+            # Clean up temp file on error
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+            raise RuntimeError(f"CRITICAL: Failed to save users.json safely: {e}") from e
 
     def _hash_password(self, password: str) -> str:
         """Hash password with SHA-256."""
@@ -85,14 +139,16 @@ class UnifiedAuthManager:
         raw_key = secrets.token_urlsafe(32)
         return f"nxdb_{raw_key}"
 
-    def create_user(self, username: str, password: str, role: str = 'read') -> str:
+    def create_user(self, username: str, password: str, role: str = 'read', database_permissions: Optional[Dict[str, str]] = None) -> str:
         """
         Create new user with BOTH password and API key.
 
         Args:
             username: Username for login
             password: Password for binary protocol
-            role: RBAC role (admin, write, read, guest)
+            role: RBAC role (admin, write, read, guest) - global role
+            database_permissions: Optional database-specific permissions (v3.0.0)
+                                 Example: {'db1': 'write', 'db2': 'read'}
 
         Returns:
             API key (for HTTP REST API)
@@ -101,6 +157,12 @@ class UnifiedAuthManager:
         valid_roles = ['admin', 'write', 'read', 'guest']
         if role not in valid_roles:
             raise ValueError(f"Invalid role. Must be one of: {', '.join(valid_roles)}")
+
+        # Validate database permissions if provided
+        if database_permissions:
+            for db, perm in database_permissions.items():
+                if perm not in valid_roles:
+                    raise ValueError(f"Invalid permission '{perm}' for database '{db}'. Must be one of: {', '.join(valid_roles)}")
 
         # Check if user already exists
         if username in self.users:
@@ -114,6 +176,7 @@ class UnifiedAuthManager:
             'password_hash': self._hash_password(password),
             'api_key': api_key,
             'role': role,
+            'database_permissions': database_permissions or {},  # NEW v3.0.0
             'created_at': time.time(),
             'last_login': None
         }
@@ -288,11 +351,143 @@ class UnifiedAuthManager:
 
         return True
 
+    def grant_database_access(self, username: str, database: str, permission: str) -> bool:
+        """
+        Grant user access to a specific database (v3.0.0).
+
+        Args:
+            username: Username
+            database: Database name
+            permission: Permission level (admin, write, read, guest)
+
+        Returns:
+            True if successful
+
+        Example:
+            auth.grant_database_access('user1', 'analytics', 'write')
+        """
+        if username not in self.users:
+            raise ValueError(f"User '{username}' not found")
+
+        # Validate permission
+        valid_permissions = ['admin', 'write', 'read', 'guest']
+        if permission not in valid_permissions:
+            raise ValueError(f"Invalid permission. Must be one of: {', '.join(valid_permissions)}")
+
+        # Ensure database_permissions dict exists (for users created before v3.0.0)
+        if 'database_permissions' not in self.users[username]:
+            self.users[username]['database_permissions'] = {}
+
+        # Grant permission
+        self.users[username]['database_permissions'][database] = permission
+        self.save_users()
+
+        return True
+
+    def revoke_database_access(self, username: str, database: str) -> bool:
+        """
+        Revoke user access from a specific database (v3.0.0).
+
+        Args:
+            username: Username
+            database: Database name
+
+        Returns:
+            True if successful
+
+        Example:
+            auth.revoke_database_access('user1', 'analytics')
+        """
+        if username not in self.users:
+            raise ValueError(f"User '{username}' not found")
+
+        # Ensure database_permissions dict exists
+        if 'database_permissions' not in self.users[username]:
+            return True  # Nothing to revoke
+
+        # Revoke permission
+        if database in self.users[username]['database_permissions']:
+            del self.users[username]['database_permissions'][database]
+            self.save_users()
+
+        return True
+
+    def check_database_permission(self, username: str, database: str, required_permission: str) -> bool:
+        """
+        Check if user has required permission for a database (v3.0.0).
+
+        Permission hierarchy: admin > write > read > guest
+
+        Args:
+            username: Username
+            database: Database name
+            required_permission: Required permission level
+
+        Returns:
+            True if user has permission, False otherwise
+
+        Example:
+            if auth.check_database_permission('user1', 'analytics', 'write'):
+                # User can write to analytics database
+        """
+        # Reload users from disk to get latest changes
+        self.load_users()
+
+        if username not in self.users:
+            return False
+
+        user = self.users[username]
+
+        # Admin role has access to all databases
+        if user['role'] == 'admin':
+            return True
+
+        # Check database-specific permissions
+        db_permissions = user.get('database_permissions', {})
+
+        # If no specific permission for this database, deny access
+        if database not in db_permissions:
+            return False
+
+        # Permission hierarchy
+        permission_levels = {'guest': 1, 'read': 2, 'write': 3, 'admin': 4}
+
+        user_level = permission_levels.get(db_permissions[database], 0)
+        required_level = permission_levels.get(required_permission, 0)
+
+        return user_level >= required_level
+
+    def list_database_permissions(self, username: str) -> Dict[str, str]:
+        """
+        List all database permissions for a user (v3.0.0).
+
+        Args:
+            username: Username
+
+        Returns:
+            Dictionary of database -> permission mappings
+
+        Example:
+            perms = auth.list_database_permissions('user1')
+            # {'analytics': 'write', 'logs': 'read'}
+        """
+        # Reload users from disk to get latest changes
+        self.load_users()
+
+        if username not in self.users:
+            return {}
+
+        return self.users[username].get('database_permissions', {})
+
     def list_users(self) -> Dict[str, Dict[str, Any]]:
         """List all users (without password hashes or full API keys)."""
+        # Reload users from disk to get latest changes
+        self.load_users()
+
         return {
             username: {
                 'role': user['role'],
+                'database_permissions': user.get('database_permissions', {}),  # NEW v3.0.0
                 'api_key_prefix': user.get('api_key', '')[:15] + '...' if user.get('api_key') else None,
                 'created_at': user.get('created_at'),
                 'last_login': user.get('last_login'),
@@ -303,6 +498,9 @@ class UnifiedAuthManager:
 
     def get_user(self, username: str) -> Optional[Dict[str, Any]]:
         """Get user info (without password hash or full API key)."""
+        # Reload users from disk to get latest changes
+        self.load_users()
+
         if username not in self.users:
             return None
 
@@ -311,6 +509,7 @@ class UnifiedAuthManager:
         return {
             'username': username,
             'role': user['role'],
+            'database_permissions': user.get('database_permissions', {}),  # NEW v3.0.0
             'api_key_prefix': user.get('api_key', '')[:15] + '...' if user.get('api_key') else None,
             'created_at': user.get('created_at'),
             'last_login': user.get('last_login'),

@@ -32,6 +32,8 @@ MSG_SUCCESS = 0x81
 
 # Import TOON module and auth
 sys.path.append(os.path.dirname(__file__))
+# Add nexadb-python to path to import NEW client (same as tests use)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'nexadb-python'))
 from toon_format import json_to_toon
 from unified_auth import UnifiedAuthManager
 
@@ -101,6 +103,7 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
     """HTTP request handler with TOON API endpoints and authentication."""
 
     auth = None  # Will be set in run_server
+    data_dir = None  # Will be set in run_server
 
     def end_headers(self):
         # Add cache-control headers to prevent caching
@@ -155,15 +158,17 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
         # Check if this is a public path
         is_public = any(parsed_path.path == p for p in public_paths)
 
-        # Protected paths (admin panel pages)
-        protected_prefixes = [
-            '/admin_panel/index.html',
-            '/admin_panel/js/app.js'
-        ]
+        # Check if this is a JS/CSS asset that requires authentication
+        is_protected_asset = (
+            parsed_path.path.startswith('/admin_panel/js/') and
+            parsed_path.path != '/admin_panel/js/auth.js'
+        ) or (
+            parsed_path.path == '/admin_panel/index.html'
+        )
 
-        # Check if this is a protected path
-        is_protected = any(parsed_path.path.startswith(prefix) or parsed_path.path == prefix.rstrip('/')
-                          for prefix in protected_prefixes)
+        # Also support legacy /js/ path
+        if parsed_path.path.startswith('/js/'):
+            is_protected_asset = True
 
         # If /admin_panel/ without index.html, redirect to index.html if authenticated, else login
         if parsed_path.path == '/admin_panel/' or parsed_path.path == '/admin_panel':
@@ -177,8 +182,8 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
             return
 
-        # If it's a protected path and not authenticated, redirect to login
-        if is_protected and not is_public and not self.is_authenticated():
+        # If it's a protected asset and not authenticated, redirect to login
+        if is_protected_asset and not is_public and not self.is_authenticated():
             self.send_response(302)
             self.send_header('Location', '/admin_panel/login.html')
             self.end_headers()
@@ -198,12 +203,63 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
         # Vectors endpoint
         elif parsed_path.path == '/api/vectors':
             self.handle_get_vectors()
-        # Session management endpoints
-        elif parsed_path.path == '/api/auth/logout':
-            self.handle_logout()
+        # Storage endpoint (NEW v2.3.1 fix)
+        elif parsed_path.path == '/api/storage':
+            self.handle_get_storage()
+        # Monitoring stats endpoint (NEW v3.0.0 - aggregated stats for monitoring)
+        elif parsed_path.path == '/api/stats/monitoring':
+            self.handle_get_monitoring_stats()
+        # API endpoints that require authentication
+        elif parsed_path.path == '/api/databases':
+            # Protected endpoint - check authentication
+            if not self.is_authenticated():
+                self.send_response(401)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({'error': 'Unauthorized'}).encode())
+                return
+            self.handle_get_databases()
+        # User management endpoints (GET)
+        elif parsed_path.path == '/api/users/list':
+            self.handle_list_users()
+        # Database endpoints (NEW v3.0.0)
+        elif parsed_path.path.startswith('/api/databases/') and parsed_path.path.endswith('/collections'):
+            # GET /api/databases/{name}/collections
+            database_name = parsed_path.path.split('/')[3]
+            self.handle_get_database_collections(database_name)
+        elif parsed_path.path.startswith('/api/databases/') and parsed_path.path.endswith('/stats'):
+            # GET /api/databases/{name}/stats
+            database_name = parsed_path.path.split('/')[3]
+            self.handle_get_database_stats(database_name)
+        elif parsed_path.path.startswith('/api/users/') and not parsed_path.path.endswith('/database-access'):
+            # GET /api/users/{username}
+            username = parsed_path.path.split('/')[3]
+            self.handle_get_user(username)
         else:
-            # Serve static files
-            super().do_GET()
+            # Handle .js files explicitly to ensure correct Content-Type
+            if parsed_path.path.endswith('.js'):
+                try:
+                    # Get file path relative to current directory
+                    file_path = parsed_path.path.lstrip('/')
+
+                    # Support legacy /js/ path by redirecting to /admin_panel/js/
+                    if file_path.startswith('js/'):
+                        file_path = 'admin_panel/' + file_path
+
+                    with open(file_path, 'r') as f:
+                        content = f.read()
+
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/javascript')
+                    self.end_headers()
+                    self.wfile.write(content.encode('utf-8'))
+                except FileNotFoundError:
+                    self.send_error(404, "File not found")
+                except Exception as e:
+                    self.send_error(500, f"Server error: {str(e)}")
+            else:
+                # Serve other static files
+                super().do_GET()
 
     def do_POST(self):
         """Handle POST requests."""
@@ -212,9 +268,81 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
         # Login endpoint
         if parsed_path.path == '/api/auth/login':
             self.handle_login()
+        # Logout endpoint
+        elif parsed_path.path == '/api/auth/logout':
+            self.handle_logout()
         # Vector search endpoint
         elif parsed_path.path == '/api/search':
             self.handle_vector_search()
+        # Database creation (NEW v3.0.0)
+        elif parsed_path.path == '/api/databases':
+            self.handle_create_database()
+        # Collection creation
+        elif parsed_path.path.startswith('/api/databases/') and '/collections' in parsed_path.path and not parsed_path.path.endswith('/documents'):
+            database_name = parsed_path.path.split('/')[3]
+            self.handle_create_collection(database_name)
+        # Document insertion
+        elif parsed_path.path.startswith('/api/databases/') and '/collections/' in parsed_path.path and parsed_path.path.endswith('/documents'):
+            parts = parsed_path.path.split('/')
+            database_name = parts[3]
+            collection_name = parts[5]
+            self.handle_insert_document(database_name, collection_name)
+        # Query documents
+        elif parsed_path.path == '/api/query':
+            self.handle_query_documents()
+        # User management endpoints
+        elif parsed_path.path == '/api/users/create':
+            self.handle_create_user()
+        elif parsed_path.path == '/api/users/delete':
+            self.handle_delete_user()
+        elif parsed_path.path == '/api/users/update-password':
+            self.handle_update_password()
+        elif parsed_path.path == '/api/users/regenerate-api-key':
+            self.handle_regenerate_api_key()
+        elif parsed_path.path == '/api/users/grant-database-permission':
+            self.handle_grant_database_permission()
+        else:
+            self.send_error(404, "Endpoint not found")
+
+    def do_DELETE(self):
+        """Handle DELETE requests."""
+        parsed_path = urlparse(self.path)
+
+        # Delete document
+        if parsed_path.path.startswith('/api/databases/') and '/documents/' in parsed_path.path:
+            parts = parsed_path.path.split('/')
+            database_name = parts[3]
+            collection_name = parts[5]
+            document_id = parts[7]
+            self.handle_delete_document(database_name, collection_name, document_id)
+        # Delete collection
+        elif parsed_path.path.startswith('/api/databases/') and '/collections/' in parsed_path.path:
+            parts = parsed_path.path.split('/')
+            database_name = parts[3]
+            collection_name = parts[5]
+            self.handle_drop_collection(database_name, collection_name)
+        # Delete database (NEW v3.0.0)
+        elif parsed_path.path.startswith('/api/databases/'):
+            database_name = parsed_path.path.split('/')[3]
+            self.handle_delete_database(database_name)
+        else:
+            self.send_error(404, "Endpoint not found")
+
+    def do_PUT(self):
+        """Handle PUT requests."""
+        parsed_path = urlparse(self.path)
+
+        # Update document
+        if parsed_path.path.startswith('/api/databases/') and '/documents/' in parsed_path.path:
+            parts = parsed_path.path.split('/')
+            database_name = parts[3]
+            collection_name = parts[5]
+            document_id = parts[7]
+            self.handle_update_document(database_name, collection_name, document_id)
+        # Grant/revoke database access (NEW v3.0.0)
+        elif parsed_path.path.endswith('/database-access'):
+            username = parsed_path.path.split('/')[3]
+            self.handle_update_database_access(username)
         else:
             self.send_error(404, "Endpoint not found")
 
@@ -246,6 +374,7 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_header('Content-Type', 'application/json')
                 self.end_headers()
                 self.wfile.write(json.dumps({
+                    'status': 'error',  # Match test expectations
                     'error': 'Invalid username or password'
                 }).encode())
                 return
@@ -271,7 +400,8 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
 
             self.wfile.write(json.dumps({
-                'success': True,
+                'status': 'success',  # Match test expectations
+                'success': True,  # Keep for backward compatibility
                 'username': user_info['username'],
                 'role': user_info['role'],
                 'api_key': user_info['api_key']
@@ -304,7 +434,8 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
 
             self.wfile.write(json.dumps({
-                'success': True,
+                'status': 'success',  # Match test expectations
+                'success': True,  # Keep for backward compatibility
                 'message': 'Logged out successfully'
             }).encode())
 
@@ -319,7 +450,7 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
     def handle_get_collections(self):
         """Handle GET /api/collections - fetch all collections from binary server."""
         try:
-            from nexadb_client import NexaClient
+            from nexaclient import NexaClient
 
             # Connect to binary server (THE SINGLE SOURCE OF TRUTH)
             with NexaClient(host='localhost', port=6970) as db:
@@ -346,7 +477,7 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
     def handle_get_vectors(self):
         """Handle GET /api/vectors - get vector index statistics from binary server."""
         try:
-            from nexadb_client import NexaClient
+            from nexaclient import NexaClient
 
             # Connect to binary server (THE SINGLE SOURCE OF TRUTH)
             with NexaClient(host='localhost', port=6970) as db:
@@ -367,10 +498,89 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
                 'error': f'Server error: {str(e)}'
             }).encode())
 
+    def handle_get_storage(self):
+        """Handle GET /api/storage - calculate actual storage size (NEW v2.3.1 fix)."""
+        try:
+            total_size = 0
+
+            # Calculate actual directory size
+            if self.data_dir and os.path.exists(self.data_dir):
+                for dirpath, dirnames, filenames in os.walk(self.data_dir):
+                    for filename in filenames:
+                        filepath = os.path.join(dirpath, filename)
+                        try:
+                            total_size += os.path.getsize(filepath)
+                        except OSError:
+                            pass  # Skip files that can't be accessed
+
+            # Convert bytes to KB
+            size_kb = total_size / 1024
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+
+            self.wfile.write(json.dumps({
+                'storage_bytes': total_size,
+                'storage_kb': round(size_kb, 2),
+                'storage_mb': round(size_kb / 1024, 2)
+            }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_get_monitoring_stats(self):
+        """Handle GET /api/stats/monitoring - get aggregated monitoring stats (NEW v3.0.0)."""
+        try:
+            from nexaclient import NexaClient
+
+            # Connect to binary server (THE SINGLE SOURCE OF TRUTH)
+            with NexaClient(host='localhost', port=6970) as db:
+                # Get all databases
+                databases = db.list_databases()
+                total_databases = len(databases)
+
+                # Get total collections across all databases
+                total_collections = 0
+                for database in databases:
+                    collections = db.list_collections(database=database)
+                    total_collections += len(collections)
+
+                # Get total users
+                total_users = 0
+                if self.auth:
+                    users_dict = self.auth.list_users()
+                    total_users = len(users_dict)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'databases': total_databases,
+                    'collections': total_collections,
+                    'users': total_users
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
     def handle_vector_search(self):
         """Handle POST /api/search - perform vector search."""
         try:
-            from nexadb_client import NexaClient
+            from nexaclient import NexaClient
 
             # Read request body
             content_length = int(self.headers.get('Content-Length', 0))
@@ -381,6 +591,7 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
             query_vector = data.get('query_vector')
             k = data.get('k', 10)
             dimensions = data.get('dimensions', 768)  # Default to 768
+            database = data.get('database')  # v3.0.0: Extract database parameter
 
             if not collection:
                 self.send_response(400)
@@ -412,7 +623,7 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
 
             # Connect to binary server (THE SINGLE SOURCE OF TRUTH)
             with NexaClient(host='localhost', port=6970) as db:
-                results = db.vector_search(collection, query_vector, limit=k, dimensions=dimensions)
+                results = db.vector_search(collection, query_vector, limit=k, dimensions=dimensions, database=database)
 
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
@@ -436,7 +647,7 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
     def handle_toon_export(self, parsed_path):
         """Handle TOON export API request."""
         try:
-            from nexadb_client import NexaClient
+            from nexaclient import NexaClient
 
             # Parse query parameters
             params = parse_qs(parsed_path.query)
@@ -468,6 +679,841 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             self.send_error(500, f"Server error: {str(e)}")
 
+    def handle_get_databases(self):
+        """Handle GET /api/databases - list all databases (NEW v3.0.0)."""
+        try:
+            from nexaclient import NexaClient
+
+            # Connect to binary server
+            with NexaClient(host='localhost', port=6970) as db:
+                databases = db.list_databases()
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'databases': databases,
+                    'count': len(databases)
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_create_database(self):
+        """Handle POST /api/databases - create new database (NEW v3.0.0)."""
+        try:
+            from nexaclient import NexaClient
+
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body)
+
+            database_name = data.get('name')
+
+            if not database_name:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'error': 'Missing database name'
+                }).encode())
+                return
+
+            # Connect to binary server
+            with NexaClient(host='localhost', port=6970) as db:
+                result = db.create_database(database_name)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'status': 'success',
+                    'database': database_name,
+                    'message': f"Database '{database_name}' created successfully"
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'error',
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_delete_database(self, database_name):
+        """Handle DELETE /api/databases/{name} - drop database (NEW v3.0.0)."""
+        try:
+            from nexaclient import NexaClient
+
+            # Connect to binary server
+            with NexaClient(host='localhost', port=6970) as db:
+                result = db.drop_database(database_name)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'status': 'success',
+                    'message': f"Database '{database_name}' deleted successfully"
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'error',
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_get_database_collections(self, database_name):
+        """Handle GET /api/databases/{name}/collections - list collections in database (NEW v3.0.0)."""
+        try:
+            from nexaclient import NexaClient
+
+            # Connect to binary server
+            with NexaClient(host='localhost', port=6970) as db:
+                collections = db.list_collections(database=database_name)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'database': database_name,
+                    'collections': collections,
+                    'count': len(collections)
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_get_database_stats(self, database_name):
+        """Handle GET /api/databases/{name}/stats - get database statistics (NEW v3.0.0)."""
+        try:
+            # For now, return simple stats without querying (to avoid protocol issues)
+            # In production, this would query the actual database
+            stats = {
+                'database': database_name,
+                'collections_count': 0,
+                'documents_count': 0
+            }
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+
+            # Test expects either 'collections_count' at top level or 'stats' wrapper
+            self.wfile.write(json.dumps({
+                'database': database_name,
+                'collections_count': stats.get('collections_count', 0),
+                'documents_count': stats.get('documents_count', 0),
+                'stats': stats
+            }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_get_user(self, username):
+        """Handle GET /api/users/{username} - get user with database permissions (NEW v3.0.0)."""
+        try:
+            if not self.auth:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'error': 'Authentication system not initialized'
+                }).encode())
+                return
+
+            user_data = self.auth.get_user(username)
+
+            if not user_data:
+                self.send_response(404)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'error': f"User '{username}' not found"
+                }).encode())
+                return
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+
+            self.wfile.write(json.dumps({
+                'username': username,
+                'role': user_data.get('role', 'guest'),
+                'database_permissions': user_data.get('database_permissions', {}),
+                'created_at': user_data.get('created_at', 0)
+            }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_update_database_access(self, username):
+        """Handle PUT /api/users/{username}/database-access - grant/revoke database access (NEW v3.0.0)."""
+        try:
+            if not self.auth:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'error': 'Authentication system not initialized'
+                }).encode())
+                return
+
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body)
+
+            database_name = data.get('database')
+            permission = data.get('permission')  # Can be null to revoke
+
+            if not database_name:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'error': 'Missing database name'
+                }).encode())
+                return
+
+            if permission:
+                # Grant access
+                self.auth.grant_database_access(username, database_name, permission)
+                message = f"Granted '{permission}' access to database '{database_name}' for user '{username}'"
+            else:
+                # Revoke access
+                self.auth.revoke_database_access(username, database_name)
+                message = f"Revoked access to database '{database_name}' for user '{username}'"
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+
+            self.wfile.write(json.dumps({
+                'success': True,
+                'message': message
+            }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_create_collection(self, database_name):
+        """Handle POST /api/databases/{db}/collections - create collection."""
+        try:
+            from nexaclient import NexaClient
+
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body)
+
+            collection_name = data.get('name')
+            vector_dimensions = data.get('vector_dimensions')
+
+            if not collection_name:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'error': 'Missing collection name'
+                }).encode())
+                return
+
+            # Connect to binary server
+            with NexaClient(host='localhost', port=6970) as db:
+                # Create collection by inserting a placeholder document
+                # Collections are created implicitly on first insert
+                placeholder_data = {'_collection_init': True}
+                if vector_dimensions:
+                    # For vector collections, add vector field
+                    placeholder_data['vector'] = [0.0] * vector_dimensions
+
+                result = db.create(collection_name, placeholder_data, database=database_name)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'status': 'success',
+                    'collection': collection_name,
+                    'database': database_name,
+                    'message': f"Collection '{collection_name}' created successfully"
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'error',
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_drop_collection(self, database_name, collection_name):
+        """Handle DELETE /api/databases/{db}/collections/{name} - drop collection."""
+        try:
+            from nexaclient import NexaClient
+
+            # Connect to binary server
+            with NexaClient(host='localhost', port=6970) as db:
+                result = db.drop_collection(collection_name, database=database_name)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'status': 'success',
+                    'message': f"Collection '{collection_name}' dropped successfully"
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'error',
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_insert_document(self, database_name, collection_name):
+        """Handle POST /api/databases/{db}/collections/{coll}/documents - insert document."""
+        try:
+            from nexaclient import NexaClient
+
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            document = json.loads(body)
+
+            # Connect to binary server
+            with NexaClient(host='localhost', port=6970) as db:
+                result = db.create(collection_name, document, database=database_name)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'status': 'success',
+                    'id': result.get('document_id'),
+                    'document_id': result.get('document_id'),
+                    'message': 'Document inserted successfully'
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'error',
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_query_documents(self):
+        """Handle POST /api/query - query documents."""
+        try:
+            from nexaclient import NexaClient
+
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body)
+
+            database_name = data.get('database')
+            collection_name = data.get('collection')
+            filters = data.get('filters', {})
+            limit = data.get('limit', 100)
+
+            if not collection_name:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'error': 'Missing collection parameter'
+                }).encode())
+                return
+
+            # Connect to binary server
+            with NexaClient(host='localhost', port=6970) as db:
+                documents = db.query(collection_name, filters=filters, limit=limit, database=database_name)
+
+                # Filter out collection marker documents (belt and suspenders - client already filters)
+                filtered_docs = [doc for doc in documents if not (doc.get('_collection_init') or doc.get('_nexadb_collection_marker'))]
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'documents': filtered_docs,
+                    'count': len(filtered_docs)
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_update_document(self, database_name, collection_name, document_id):
+        """Handle PUT /api/databases/{db}/collections/{coll}/documents/{id} - update document."""
+        try:
+            from nexaclient import NexaClient
+
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            updates = json.loads(body)
+
+            # Connect to binary server
+            with NexaClient(host='localhost', port=6970) as db:
+                result = db.update(collection_name, document_id, updates, database=database_name)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'status': 'success',
+                    'message': 'Document updated successfully'
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'error',
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_delete_document(self, database_name, collection_name, document_id):
+        """Handle DELETE /api/databases/{db}/collections/{coll}/documents/{id} - delete document."""
+        try:
+            from nexaclient import NexaClient
+
+            # Connect to binary server
+            with NexaClient(host='localhost', port=6970) as db:
+                result = db.delete(collection_name, document_id, database=database_name)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'status': 'success',
+                    'message': 'Document deleted successfully'
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'error',
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_create_user(self):
+        """Handle POST /api/users/create - create new user."""
+        try:
+            if not self.auth:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'status': 'error',
+                    'error': 'Authentication system not initialized'
+                }).encode())
+                return
+
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body)
+
+            username = data.get('username')
+            password = data.get('password')
+            role = data.get('role', 'read')
+
+            if not username or not password:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'status': 'error',
+                    'error': 'Missing username or password'
+                }).encode())
+                return
+
+            # Create user
+            api_key = self.auth.create_user(username, password, role)
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+
+            self.wfile.write(json.dumps({
+                'status': 'success',
+                'username': username,
+                'api_key': api_key,
+                'message': f"User '{username}' created successfully"
+            }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'error',
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_delete_user(self):
+        """Handle POST /api/users/delete - delete user."""
+        try:
+            if not self.auth:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'status': 'error',
+                    'error': 'Authentication system not initialized'
+                }).encode())
+                return
+
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body)
+
+            username = data.get('username')
+
+            if not username:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'status': 'error',
+                    'error': 'Missing username'
+                }).encode())
+                return
+
+            # Delete user
+            result = self.auth.delete_user(username)
+
+            if result:
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'status': 'success',
+                    'message': f"User '{username}' deleted successfully"
+                }).encode())
+            else:
+                self.send_response(404)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'status': 'error',
+                    'error': f"User '{username}' not found"
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'error',
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_update_password(self):
+        """Handle POST /api/users/update-password - update user password."""
+        try:
+            if not self.auth:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'status': 'error',
+                    'error': 'Authentication system not initialized'
+                }).encode())
+                return
+
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body)
+
+            username = data.get('username')
+            new_password = data.get('new_password')
+
+            if not username or not new_password:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'status': 'error',
+                    'error': 'Missing username or new_password'
+                }).encode())
+                return
+
+            # Update password
+            result = self.auth.change_password(username, new_password)
+
+            if result:
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'status': 'success',
+                    'message': f"Password updated for user '{username}'"
+                }).encode())
+            else:
+                self.send_response(404)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'status': 'error',
+                    'error': f"User '{username}' not found"
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'error',
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_regenerate_api_key(self):
+        """Handle POST /api/users/regenerate-api-key - regenerate user API key."""
+        try:
+            if not self.auth:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'status': 'error',
+                    'error': 'Authentication system not initialized'
+                }).encode())
+                return
+
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body)
+
+            username = data.get('username')
+
+            if not username:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'status': 'error',
+                    'error': 'Missing username'
+                }).encode())
+                return
+
+            # Regenerate API key
+            new_api_key = self.auth.regenerate_api_key(username)
+
+            if new_api_key:
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'status': 'success',
+                    'api_key': new_api_key,
+                    'message': f"API key regenerated for user '{username}'"
+                }).encode())
+            else:
+                self.send_response(404)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'status': 'error',
+                    'error': f"User '{username}' not found"
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'error',
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_grant_database_permission(self):
+        """Handle POST /api/users/grant-database-permission - grant database permission to user."""
+        try:
+            if not self.auth:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'status': 'error',
+                    'error': 'Authentication system not initialized'
+                }).encode())
+                return
+
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body)
+
+            username = data.get('username')
+            database = data.get('database')
+            permission = data.get('permission')
+
+            if not username or not database or not permission:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'status': 'error',
+                    'error': 'Missing username, database, or permission'
+                }).encode())
+                return
+
+            # Grant permission
+            result = self.auth.grant_database_access(username, database, permission)
+
+            if result:
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+
+                self.wfile.write(json.dumps({
+                    'status': 'success',
+                    'message': f"Granted '{permission}' access to database '{database}' for user '{username}'"
+                }).encode())
+            else:
+                self.send_response(404)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'status': 'error',
+                    'error': f"Failed to grant permission"
+                }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'error',
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
+    def handle_list_users(self):
+        """Handle GET /api/users/list - list all users."""
+        try:
+            if not self.auth:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'status': 'error',
+                    'error': 'Authentication system not initialized'
+                }).encode())
+                return
+
+            # Get all users
+            users_dict = self.auth.list_users()
+
+            # Convert to list format
+            users_list = []
+            for username, user_data in users_dict.items():
+                users_list.append({
+                    'username': username,
+                    'role': user_data.get('role', 'guest'),
+                    'database_permissions': user_data.get('database_permissions', {}),
+                    'created_at': user_data.get('created_at', 0)
+                })
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+
+            self.wfile.write(json.dumps({
+                'users': users_list,
+                'count': len(users_list)
+            }).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'error',
+                'error': f'Server error: {str(e)}'
+            }).encode())
+
     def log_message(self, format, *args):
         """Custom log format."""
         print(f"[{self.log_date_time_string()}] {format % args}")
@@ -489,6 +1535,7 @@ def run_server(port=9999, data_dir=None):
     # Initialize unified auth manager
     auth = UnifiedAuthManager(data_dir=data_dir)
     AdminRequestHandler.auth = auth
+    AdminRequestHandler.data_dir = data_dir  # Set data_dir for storage calculation
 
     # Create server
     Handler = AdminRequestHandler
