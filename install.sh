@@ -87,7 +87,8 @@ echo -e "${CYAN}Installing Python packages...${RESET}"
 # Core dependencies: msgpack (binary protocol), sortedcontainers (LSM tree), pybloom_live (bloom filters)
 # Bloom filter dependencies: xxhash, bitarray (required by pybloom_live)
 # Performance: numpy (10x faster vector operations)
-PYTHON_PACKAGES="msgpack sortedcontainers pybloom_live xxhash bitarray numpy"
+# Client: nexaclient (required by nexadb_server.py for multi-database support)
+PYTHON_PACKAGES="msgpack sortedcontainers pybloom_live xxhash bitarray numpy nexaclient"
 
 echo -e "${CYAN}Installing: $PYTHON_PACKAGES${RESET}"
 

@@ -7,7 +7,7 @@ FROM python:3.11-slim
 # Metadata
 LABEL maintainer="Krish <krishcdbry@gmail.com>"
 LABEL description="NexaDB - Database for AI Developers"
-LABEL version="3.0.0"
+LABEL version="3.0.4"
 
 # Set working directory
 WORKDIR /app
@@ -27,19 +27,24 @@ COPY veloxdb_core.py .
 COPY storage_engine.py .
 COPY nexadb_client.py .
 COPY reset_root_password.py .
+COPY vector_index.py .
+COPY toon_format.py .
+COPY index_manager.py .
+COPY unified_auth.py .
+COPY change_events.py .
 COPY admin_panel/ admin_panel/
 
 # Install Python dependencies
 RUN pip install --no-cache-dir msgpack sortedcontainers pybloom_live numpy xxhash bitarray
 
-# Download nexa CLI binary (architecture-aware) - optional
+# Download nexa CLI binary (architecture-aware)
 RUN ARCH=$(uname -m) && \
     if [ "$ARCH" = "x86_64" ]; then \
-        NEXA_URL="https://github.com/krishcdbry/nexadb/releases/download/cli-v2.2.0/nexa-x86_64-unknown-linux-gnu"; \
+        NEXA_URL="https://github.com/krishcdbry/nexa-cli/releases/download/v3.0.4/nexa-x86_64-unknown-linux-gnu"; \
     elif [ "$ARCH" = "aarch64" ]; then \
-        NEXA_URL="https://github.com/krishcdbry/nexadb/releases/download/cli-v2.2.0/nexa-aarch64-unknown-linux-gnu"; \
+        NEXA_URL="https://github.com/krishcdbry/nexa-cli/releases/download/v3.0.4/nexa-aarch64-unknown-linux-gnu"; \
     fi && \
-    (curl -fsSL "$NEXA_URL" -o /usr/local/bin/nexa && chmod +x /usr/local/bin/nexa) || echo "CLI binary not available yet, skipping..."
+    curl -fsSL "$NEXA_URL" -o /usr/local/bin/nexa && chmod +x /usr/local/bin/nexa
 
 # Create data directory
 RUN mkdir -p /data
