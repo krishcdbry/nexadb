@@ -588,24 +588,32 @@ class Collection:
             # Handle query operators
             if isinstance(condition, dict):
                 for operator, operand in condition.items():
-                    if operator == '$eq' and value != operand:
+                    # Handle comparison operators: return False if field is missing (None)
+                    # This prevents NoneType comparison errors
+                    if operator in ('$gt', '$gte', '$lt', '$lte'):
+                        if value is None:
+                            return False  # Field doesn't exist, document doesn't match
+
+                        # Perform the comparison
+                        if operator == '$gt' and not (value > operand):
+                            return False
+                        elif operator == '$gte' and not (value >= operand):
+                            return False
+                        elif operator == '$lt' and not (value < operand):
+                            return False
+                        elif operator == '$lte' and not (value <= operand):
+                            return False
+
+                    elif operator == '$eq' and value != operand:
                         return False
                     elif operator == '$ne' and value == operand:
-                        return False
-                    elif operator == '$gt' and not (value > operand):
-                        return False
-                    elif operator == '$gte' and not (value >= operand):
-                        return False
-                    elif operator == '$lt' and not (value < operand):
-                        return False
-                    elif operator == '$lte' and not (value <= operand):
                         return False
                     elif operator == '$in' and value not in operand:
                         return False
                     elif operator == '$nin' and value in operand:
                         return False
                     elif operator == '$regex':
-                        if not re.search(operand, str(value)):
+                        if value is None or not re.search(operand, str(value)):
                             return False
                     elif operator == '$exists':
                         field_exists = value is not None
@@ -1023,7 +1031,7 @@ class Database:
             metadata = {
                 'name': self.name,
                 'created_at': time.time(),
-                'version': '3.0.0'
+                'version': '3.0.1'
             }
             self.engine.put(metadata_key, json.dumps(metadata).encode('utf-8'))
 

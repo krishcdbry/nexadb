@@ -26,7 +26,7 @@ echo "║     ██║ ╚████║███████╗██╔╝ �
 echo "║     ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚═════╝               ║"
 echo "║                                                                       ║"
 echo "║                   Database for AI Developers                         ║"
-echo "║                          v2.2.11                                      ║"
+echo "║                          v3.0.1                                       ║"
 echo "║                                                                       ║"
 echo "╚═══════════════════════════════════════════════════════════════════════╝"
 echo -e "${RESET}"
@@ -118,7 +118,7 @@ mkdir -p "$BIN_DIR"
 mkdir -p "$DATA_DIR"
 
 # Download NexaDB files
-echo -e "\n${BOLD}[3/5] Downloading NexaDB v2.2.11...${RESET}"
+echo -e "\n${BOLD}[3/5] Downloading NexaDB v3.0.1...${RESET}"
 cd "$INSTALL_DIR"
 
 FILES=(
@@ -185,7 +185,7 @@ case "$1" in
     python3 reset_root_password.py --data-dir "$DATA_DIR" "$@"
     ;;
   --version|-v)
-    echo "NexaDB v2.2.11"
+    echo "NexaDB v3.0.1"
     ;;
   --help|-h|help|*)
     cat <<HELP

@@ -1,0 +1,512 @@
+"""
+Unit Tests for Authentication and Authorization (v3.0.0)
+Tests user management, API keys, roles, and permissions
+"""
+
+import pytest
+import requests
+import hashlib
+import time
+
+
+# Test configuration for admin server
+ADMIN_URL = 'http://localhost:9999'
+
+
+class TestUserManagement:
+    """Test user creation, login, and management"""
+
+    def test_root_login(self, start_server):
+        """Test root user can login"""
+        response = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': 'root', 'password': 'password'}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['status'] == 'success'
+        assert 'role' in data
+        assert data['role'] == 'admin'
+
+    def test_create_user(self, start_server):
+        """Test creating a new user"""
+        # Login as root
+        login_response = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': 'root', 'password': 'password'}
+        )
+        session_cookie = login_response.cookies.get('session_id')
+
+        # Create new user
+        response = requests.post(
+            f'{ADMIN_URL}/api/users/create',
+            json={
+                'username': f'test_user_{int(time.time())}',
+                'password': 'test_password',
+                'role': 'read'
+            },
+            cookies={'session_id': session_cookie}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['status'] == 'success'
+
+    def test_create_duplicate_user(self, start_server):
+        """Test creating duplicate user should fail"""
+        # Login as root
+        login_response = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': 'root', 'password': 'password'}
+        )
+        session_cookie = login_response.cookies.get('session_id')
+
+        username = f'duplicate_user_{int(time.time())}'
+
+        # Create user
+        requests.post(
+            f'{ADMIN_URL}/api/users/create',
+            json={'username': username, 'password': 'password', 'role': 'read'},
+            cookies={'session_id': session_cookie}
+        )
+
+        # Try to create again
+        response = requests.post(
+            f'{ADMIN_URL}/api/users/create',
+            json={'username': username, 'password': 'password', 'role': 'read'},
+            cookies={'session_id': session_cookie}
+        )
+
+        assert response.status_code == 400 or response.json()['status'] == 'error'
+
+    def test_list_users(self, start_server):
+        """Test listing all users"""
+        # Login as root
+        login_response = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': 'root', 'password': 'password'}
+        )
+        session_cookie = login_response.cookies.get('session_id')
+
+        # List users
+        response = requests.get(
+            f'{ADMIN_URL}/api/users/list',
+            cookies={'session_id': session_cookie}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list) or 'users' in data
+        # Root user should always exist
+        if isinstance(data, list):
+            assert any(u.get('username') == 'root' for u in data)
+
+    def test_delete_user(self, start_server):
+        """Test deleting a user"""
+        # Login as root
+        login_response = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': 'root', 'password': 'password'}
+        )
+        session_cookie = login_response.cookies.get('session_id')
+
+        username = f'delete_user_{int(time.time())}'
+
+        # Create user
+        requests.post(
+            f'{ADMIN_URL}/api/users/create',
+            json={'username': username, 'password': 'password', 'role': 'read'},
+            cookies={'session_id': session_cookie}
+        )
+
+        # Delete user
+        response = requests.post(
+            f'{ADMIN_URL}/api/users/delete',
+            json={'username': username},
+            cookies={'session_id': session_cookie}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['status'] == 'success'
+
+    def test_update_user_password(self, start_server):
+        """Test updating user password"""
+        # Login as root
+        login_response = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': 'root', 'password': 'password'}
+        )
+        session_cookie = login_response.cookies.get('session_id')
+
+        username = f'password_user_{int(time.time())}'
+
+        # Create user
+        requests.post(
+            f'{ADMIN_URL}/api/users/create',
+            json={'username': username, 'password': 'old_password', 'role': 'read'},
+            cookies={'session_id': session_cookie}
+        )
+
+        # Update password
+        response = requests.post(
+            f'{ADMIN_URL}/api/users/update-password',
+            json={'username': username, 'new_password': 'new_password'},
+            cookies={'session_id': session_cookie}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['status'] == 'success'
+
+        # Verify new password works
+        login_response = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': username, 'password': 'new_password'}
+        )
+        assert login_response.status_code == 200
+
+        # Cleanup
+        requests.post(
+            f'{ADMIN_URL}/api/users/delete',
+            json={'username': username},
+            cookies={'session_cookie': session_cookie}
+        )
+
+
+class TestRolesAndPermissions:
+    """Test role-based access control"""
+
+    def test_admin_role_permissions(self, start_server):
+        """Test admin role has full permissions"""
+        # Login as root (admin)
+        login_response = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': 'root', 'password': 'password'}
+        )
+        session_cookie = login_response.cookies.get('session_id')
+
+        # Admin should be able to create users
+        response = requests.post(
+            f'{ADMIN_URL}/api/users/create',
+            json={
+                'username': f'admin_test_{int(time.time())}',
+                'password': 'password',
+                'role': 'read'
+            },
+            cookies={'session_id': session_cookie}
+        )
+
+        assert response.status_code == 200
+
+    def test_read_role_restrictions(self, start_server):
+        """Test read role has limited permissions"""
+        # Login as root
+        root_login = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': 'root', 'password': 'password'}
+        )
+        root_cookie = root_login.cookies.get('session_id')
+
+        username = f'read_user_{int(time.time())}'
+
+        # Create read-only user
+        requests.post(
+            f'{ADMIN_URL}/api/users/create',
+            json={'username': username, 'password': 'password', 'role': 'read'},
+            cookies={'session_id': root_cookie}
+        )
+
+        # Login as read user
+        user_login = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': username, 'password': 'password'}
+        )
+        user_cookie = user_login.cookies.get('session_id')
+
+        # Read user should NOT be able to create other users
+        response = requests.post(
+            f'{ADMIN_URL}/api/users/create',
+            json={
+                'username': f'unauthorized_{int(time.time())}',
+                'password': 'password',
+                'role': 'read'
+            },
+            cookies={'session_id': user_cookie}
+        )
+
+        assert response.status_code == 403 or response.json().get('status') == 'error'
+
+        # Cleanup
+        requests.post(
+            f'{ADMIN_URL}/api/users/delete',
+            json={'username': username},
+            cookies={'session_id': root_cookie}
+        )
+
+    def test_write_role_permissions(self, start_server):
+        """Test write role can modify data but not users"""
+        # Login as root
+        root_login = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': 'root', 'password': 'password'}
+        )
+        root_cookie = root_login.cookies.get('session_id')
+
+        username = f'write_user_{int(time.time())}'
+
+        # Create write user
+        requests.post(
+            f'{ADMIN_URL}/api/users/create',
+            json={'username': username, 'password': 'password', 'role': 'write'},
+            cookies={'session_id': root_cookie}
+        )
+
+        # Login as write user
+        user_login = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': username, 'password': 'password'}
+        )
+        user_cookie = user_login.cookies.get('session_id')
+
+        # Write user should be able to insert data (test via database operations)
+        # But should NOT be able to create users
+        response = requests.post(
+            f'{ADMIN_URL}/api/users/create',
+            json={
+                'username': f'unauthorized_{int(time.time())}',
+                'password': 'password',
+                'role': 'read'
+            },
+            cookies={'session_id': user_cookie}
+        )
+
+        assert response.status_code == 403 or response.json().get('status') == 'error'
+
+        # Cleanup
+        requests.post(
+            f'{ADMIN_URL}/api/users/delete',
+            json={'username': username},
+            cookies={'session_id': root_cookie}
+        )
+
+
+class TestAPIKeys:
+    """Test API key authentication"""
+
+    def test_create_api_key(self, start_server):
+        """Test creating API key for user"""
+        # Login as root
+        login_response = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': 'root', 'password': 'password'}
+        )
+        session_cookie = login_response.cookies.get('session_id')
+
+        username = f'api_user_{int(time.time())}'
+
+        # Create user with API key
+        response = requests.post(
+            f'{ADMIN_URL}/api/users/create',
+            json={'username': username, 'password': 'password', 'role': 'write'},
+            cookies={'session_id': session_cookie}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        # API key should be returned or can be retrieved
+        if 'api_key' in data:
+            assert data['api_key'].startswith('nxdb_')
+
+        # Cleanup
+        requests.post(
+            f'{ADMIN_URL}/api/users/delete',
+            json={'username': username},
+            cookies={'session_id': session_cookie}
+        )
+
+    def test_regenerate_api_key(self, start_server):
+        """Test regenerating API key"""
+        # Login as root
+        login_response = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': 'root', 'password': 'password'}
+        )
+        session_cookie = login_response.cookies.get('session_id')
+
+        username = f'regen_api_user_{int(time.time())}'
+
+        # Create user
+        create_response = requests.post(
+            f'{ADMIN_URL}/api/users/create',
+            json={'username': username, 'password': 'password', 'role': 'write'},
+            cookies={'session_id': session_cookie}
+        )
+        original_api_key = create_response.json().get('api_key')
+
+        # Regenerate API key
+        response = requests.post(
+            f'{ADMIN_URL}/api/users/regenerate-api-key',
+            json={'username': username},
+            cookies={'session_id': session_cookie}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        new_api_key = data.get('api_key')
+
+        # New key should be different
+        if original_api_key and new_api_key:
+            assert new_api_key != original_api_key
+            assert new_api_key.startswith('nxdb_')
+
+        # Cleanup
+        requests.post(
+            f'{ADMIN_URL}/api/users/delete',
+            json={'username': username},
+            cookies={'session_id': session_cookie}
+        )
+
+
+class TestSessionManagement:
+    """Test session authentication and timeout"""
+
+    def test_session_creation_on_login(self, start_server):
+        """Test session is created on successful login"""
+        response = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': 'root', 'password': 'password'}
+        )
+
+        assert response.status_code == 200
+        assert 'session_id' in response.cookies
+
+    def test_session_required_for_protected_routes(self, start_server):
+        """Test protected routes require valid session"""
+        # Try to access protected route without session
+        response = requests.get(f'{ADMIN_URL}/api/users/list')
+
+        assert response.status_code == 401 or response.json().get('status') == 'error'
+
+    def test_logout_invalidates_session(self, start_server):
+        """Test logout invalidates session"""
+        # Login
+        login_response = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': 'root', 'password': 'password'}
+        )
+        session_cookie = login_response.cookies.get('session_id')
+
+        # Logout
+        logout_response = requests.post(
+            f'{ADMIN_URL}/api/logout',
+            cookies={'session_id': session_cookie}
+        )
+
+        assert logout_response.status_code == 200
+
+        # Try to use old session
+        response = requests.get(
+            f'{ADMIN_URL}/api/users/list',
+            cookies={'session_id': session_cookie}
+        )
+
+        assert response.status_code == 401 or response.json().get('status') == 'error'
+
+    def test_invalid_credentials(self, start_server):
+        """Test login with invalid credentials fails"""
+        response = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': 'root', 'password': 'wrong_password'}
+        )
+
+        assert response.status_code == 401
+        data = response.json()
+        assert data['status'] == 'error'
+
+
+class TestDatabasePermissions:
+    """Test database-level permissions (v3.0.0)"""
+
+    def test_grant_database_permission(self, start_server):
+        """Test granting database-specific permissions"""
+        # Login as root
+        login_response = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': 'root', 'password': 'password'}
+        )
+        session_cookie = login_response.cookies.get('session_id')
+
+        username = f'db_perm_user_{int(time.time())}'
+
+        # Create user
+        requests.post(
+            f'{ADMIN_URL}/api/users/create',
+            json={'username': username, 'password': 'password', 'role': 'read'},
+            cookies={'session_id': session_cookie}
+        )
+
+        # Grant database permission
+        response = requests.post(
+            f'{ADMIN_URL}/api/users/grant-database-permission',
+            json={
+                'username': username,
+                'database': 'test_db',
+                'permission': 'write'
+            },
+            cookies={'session_id': session_cookie}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['status'] == 'success'
+
+        # Cleanup
+        requests.post(
+            f'{ADMIN_URL}/api/users/delete',
+            json={'username': username},
+            cookies={'session_id': session_cookie}
+        )
+
+    def test_revoke_database_permission(self, start_server):
+        """Test revoking database-specific permissions"""
+        # Login as root
+        login_response = requests.post(
+            f'{ADMIN_URL}/api/login',
+            json={'username': 'root', 'password': 'password'}
+        )
+        session_cookie = login_response.cookies.get('session_id')
+
+        username = f'db_revoke_user_{int(time.time())}'
+
+        # Create user and grant permission
+        requests.post(
+            f'{ADMIN_URL}/api/users/create',
+            json={'username': username, 'password': 'password', 'role': 'read'},
+            cookies={'session_id': session_cookie}
+        )
+
+        requests.post(
+            f'{ADMIN_URL}/api/users/grant-database-permission',
+            json={'username': username, 'database': 'test_db', 'permission': 'write'},
+            cookies={'session_id': session_cookie}
+        )
+
+        # Revoke permission
+        response = requests.post(
+            f'{ADMIN_URL}/api/users/revoke-database-permission',
+            json={'username': username, 'database': 'test_db'},
+            cookies={'session_id': session_cookie}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['status'] == 'success'
+
+        # Cleanup
+        requests.post(
+            f'{ADMIN_URL}/api/users/delete',
+            json={'username': username},
+            cookies={'session_id': session_cookie}
+        )

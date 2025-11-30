@@ -1,0 +1,525 @@
+"""
+Unit Tests for REST API (v3.0.0)
+Tests all REST API endpoints at http://localhost:6969
+"""
+
+import pytest
+import requests
+import time
+
+
+# REST API configuration
+REST_URL = 'http://localhost:6969'
+# NOTE: Tests run on localhost, which has auth bypass enabled in development mode
+# No API key needed for localhost requests
+
+
+class TestDatabaseEndpoints:
+    """Test database-related REST endpoints"""
+
+    def test_create_database_endpoint(self, start_server):
+        """Test POST /databases endpoint"""
+        db_name = f'rest_test_db_{int(time.time() * 1000)}'
+
+        response = requests.post(
+            f'{REST_URL}/databases',
+            json={'name': db_name},
+        )
+
+        assert response.status_code == 200 or response.status_code == 201
+        data = response.json()
+        assert data['status'] == 'success'
+
+        # Cleanup
+        requests.delete(
+            f'{REST_URL}/databases/{db_name}',
+        )
+
+    def test_list_databases_endpoint(self, start_server):
+        """Test GET /databases endpoint"""
+        response = requests.get(
+            f'{REST_URL}/databases',
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list) or 'databases' in data
+
+    def test_get_database_stats_endpoint(self, start_server):
+        """Test GET /databases/:name/stats endpoint"""
+        # Create test database
+        db_name = f'rest_stats_db_{int(time.time() * 1000)}'
+        requests.post(
+            f'{REST_URL}/databases',
+            json={'name': db_name},
+        )
+
+        response = requests.get(
+            f'{REST_URL}/databases/{db_name}/stats',
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert 'collections_count' in data or 'stats' in data
+
+        # Cleanup
+        requests.delete(
+            f'{REST_URL}/databases/{db_name}',
+        )
+
+    def test_delete_database_endpoint(self, start_server):
+        """Test DELETE /databases/:name endpoint"""
+        db_name = f'rest_delete_db_{int(time.time() * 1000)}'
+
+        # Create database
+        requests.post(
+            f'{REST_URL}/databases',
+            json={'name': db_name},
+        )
+
+        # Delete database
+        response = requests.delete(
+            f'{REST_URL}/databases/{db_name}',
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['status'] == 'success'
+
+
+class TestCollectionEndpoints:
+    """Test collection-related REST endpoints"""
+
+    def test_create_collection_endpoint(self, start_server):
+        """Test POST /databases/:db/collections endpoint"""
+        db_name = f'rest_coll_db_{int(time.time() * 1000)}'
+        coll_name = 'test_collection'
+
+        # Create database
+        requests.post(
+            f'{REST_URL}/databases',
+            json={'name': db_name},
+        )
+
+        # Create collection
+        response = requests.post(
+            f'{REST_URL}/databases/{db_name}/collections',
+            json={'name': coll_name},
+        )
+
+        assert response.status_code == 200 or response.status_code == 201
+        data = response.json()
+        assert data['status'] == 'success'
+
+        # Cleanup
+        requests.delete(
+            f'{REST_URL}/databases/{db_name}/collections/{coll_name}',
+        )
+        requests.delete(
+            f'{REST_URL}/databases/{db_name}',
+        )
+
+    def test_list_collections_endpoint(self, start_server):
+        """Test GET /databases/:db/collections endpoint"""
+        db_name = f'rest_list_coll_db_{int(time.time() * 1000)}'
+
+        # Create database
+        requests.post(
+            f'{REST_URL}/databases',
+            json={'name': db_name},
+        )
+
+        # List collections
+        response = requests.get(
+            f'{REST_URL}/databases/{db_name}/collections',
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list) or 'collections' in data
+
+        # Cleanup
+        requests.delete(
+            f'{REST_URL}/databases/{db_name}',
+        )
+
+    def test_delete_collection_endpoint(self, start_server):
+        """Test DELETE /databases/:db/collections/:name endpoint"""
+        db_name = f'rest_del_coll_db_{int(time.time() * 1000)}'
+        coll_name = 'test_collection'
+
+        # Create database and collection
+        requests.post(
+            f'{REST_URL}/databases',
+            json={'name': db_name},
+        )
+        requests.post(
+            f'{REST_URL}/databases/{db_name}/collections',
+            json={'name': coll_name},
+        )
+
+        # Delete collection
+        response = requests.delete(
+            f'{REST_URL}/databases/{db_name}/collections/{coll_name}',
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['status'] == 'success'
+
+        # Cleanup
+        requests.delete(
+            f'{REST_URL}/databases/{db_name}',
+        )
+
+
+class TestDocumentEndpoints:
+    """Test document CRUD REST endpoints"""
+
+    def test_insert_document_endpoint(self, start_server):
+        """Test POST /databases/:db/collections/:coll/documents endpoint"""
+        db_name = f'rest_doc_db_{int(time.time() * 1000)}'
+        coll_name = 'documents'
+
+        # Setup
+        requests.post(
+            f'{REST_URL}/databases',
+            json={'name': db_name},
+        )
+        requests.post(
+            f'{REST_URL}/databases/{db_name}/collections',
+            json={'name': coll_name},
+        )
+
+        # Insert document
+        doc = {'name': 'Test Item', 'value': 123}
+        response = requests.post(
+            f'{REST_URL}/databases/{db_name}/collections/{coll_name}/documents',
+            json=doc,
+        )
+
+        assert response.status_code == 200 or response.status_code == 201
+        data = response.json()
+        assert 'id' in data or 'document_id' in data
+
+        # Cleanup
+        requests.delete(
+            f'{REST_URL}/databases/{db_name}',
+        )
+
+    def test_query_documents_endpoint(self, start_server):
+        """Test POST /databases/:db/collections/:coll/query endpoint"""
+        db_name = f'rest_query_db_{int(time.time() * 1000)}'
+        coll_name = 'items'
+
+        # Setup
+        requests.post(
+            f'{REST_URL}/databases',
+            json={'name': db_name},
+        )
+        requests.post(
+            f'{REST_URL}/databases/{db_name}/collections',
+            json={'name': coll_name},
+        )
+
+        # Insert test data
+        requests.post(
+            f'{REST_URL}/databases/{db_name}/collections/{coll_name}/documents',
+            json={'category': 'A', 'value': 10},
+        )
+        requests.post(
+            f'{REST_URL}/databases/{db_name}/collections/{coll_name}/documents',
+            json={'category': 'B', 'value': 20},
+        )
+
+        # Query all
+        response = requests.post(
+            f'{REST_URL}/databases/{db_name}/collections/{coll_name}/query',
+            json={},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list) or 'documents' in data
+
+        # Query with filter
+        response = requests.post(
+            f'{REST_URL}/databases/{db_name}/collections/{coll_name}/query',
+            json={'filters': {'category': 'A'}},
+        )
+
+        assert response.status_code == 200
+
+        # Cleanup
+        requests.delete(
+            f'{REST_URL}/databases/{db_name}',
+        )
+
+    def test_update_document_endpoint(self, start_server):
+        """Test PUT /databases/:db/collections/:coll/documents/:id endpoint"""
+        db_name = f'rest_update_db_{int(time.time() * 1000)}'
+        coll_name = 'items'
+
+        # Setup
+        requests.post(
+            f'{REST_URL}/databases',
+            json={'name': db_name},
+        )
+        requests.post(
+            f'{REST_URL}/databases/{db_name}/collections',
+            json={'name': coll_name},
+        )
+
+        # Insert document
+        insert_response = requests.post(
+            f'{REST_URL}/databases/{db_name}/collections/{coll_name}/documents',
+            json={'name': 'Original', 'value': 100},
+        )
+        doc_id = insert_response.json().get('id') or insert_response.json().get('document_id')
+
+        # Update document
+        response = requests.put(
+            f'{REST_URL}/databases/{db_name}/collections/{coll_name}/documents/{doc_id}',
+            json={'value': 200},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['status'] == 'success'
+
+        # Cleanup
+        requests.delete(
+            f'{REST_URL}/databases/{db_name}',
+        )
+
+    def test_delete_document_endpoint(self, start_server):
+        """Test DELETE /databases/:db/collections/:coll/documents/:id endpoint"""
+        db_name = f'rest_del_doc_db_{int(time.time() * 1000)}'
+        coll_name = 'items'
+
+        # Setup
+        requests.post(
+            f'{REST_URL}/databases',
+            json={'name': db_name},
+        )
+        requests.post(
+            f'{REST_URL}/databases/{db_name}/collections',
+            json={'name': coll_name},
+        )
+
+        # Insert document
+        insert_response = requests.post(
+            f'{REST_URL}/databases/{db_name}/collections/{coll_name}/documents',
+            json={'name': 'To Delete'},
+        )
+        doc_id = insert_response.json().get('id') or insert_response.json().get('document_id')
+
+        # Delete document
+        response = requests.delete(
+            f'{REST_URL}/databases/{db_name}/collections/{coll_name}/documents/{doc_id}',
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['status'] == 'success'
+
+        # Cleanup
+        requests.delete(
+            f'{REST_URL}/databases/{db_name}',
+        )
+
+
+class TestVectorEndpoints:
+    """Test vector search REST endpoints"""
+
+    def test_vector_search_endpoint(self, start_server):
+        """Test POST /databases/:db/collections/:coll/vector-search endpoint"""
+        db_name = f'rest_vector_db_{int(time.time() * 1000)}'
+        coll_name = 'embeddings'
+
+        # Setup
+        requests.post(
+            f'{REST_URL}/databases',
+            json={'name': db_name},
+        )
+        requests.post(
+            f'{REST_URL}/databases/{db_name}/collections',
+            json={'name': coll_name, 'vector_dimensions': 384},
+        )
+
+        # Insert vectors
+        for i in range(10):
+            vector = [0.1 * j for j in range(384)]
+            requests.post(
+                f'{REST_URL}/databases/{db_name}/collections/{coll_name}/documents',
+                json={'id': i, 'vector': vector},
+                )
+
+        # Build HNSW index
+        requests.post(
+            f'{REST_URL}/databases/{db_name}/collections/{coll_name}/build-index',
+        )
+
+        # Vector search
+        query_vector = [0.1 * j for j in range(384)]
+        response = requests.post(
+            f'{REST_URL}/databases/{db_name}/collections/{coll_name}/vector-search',
+            json={'query_vector': query_vector, 'k': 5},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list) or 'results' in data
+
+        # Cleanup
+        requests.delete(
+            f'{REST_URL}/databases/{db_name}',
+        )
+
+    def test_build_hnsw_index_endpoint(self, start_server):
+        """Test POST /databases/:db/collections/:coll/build-index endpoint"""
+        db_name = f'rest_hnsw_db_{int(time.time() * 1000)}'
+        coll_name = 'vectors'
+
+        # Setup
+        requests.post(
+            f'{REST_URL}/databases',
+            json={'name': db_name},
+        )
+        requests.post(
+            f'{REST_URL}/databases/{db_name}/collections',
+            json={'name': coll_name, 'vector_dimensions': 768},
+        )
+
+        # Insert vectors
+        for i in range(20):
+            vector = [0.01 * j for j in range(768)]
+            requests.post(
+                f'{REST_URL}/databases/{db_name}/collections/{coll_name}/documents',
+                json={'id': i, 'vector': vector},
+                )
+
+        # Build index
+        response = requests.post(
+            f'{REST_URL}/databases/{db_name}/collections/{coll_name}/build-index',
+            json={'M': 16, 'ef_construction': 200},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['status'] == 'success'
+
+        # Cleanup
+        requests.delete(
+            f'{REST_URL}/databases/{db_name}',
+        )
+
+
+class TestTOONEndpoints:
+    """Test TOON format REST endpoints"""
+
+    def test_query_with_toon_format(self, start_server):
+        """Test querying with TOON format response"""
+        db_name = f'rest_toon_db_{int(time.time() * 1000)}'
+        coll_name = 'data'
+
+        # Setup
+        requests.post(
+            f'{REST_URL}/databases',
+            json={'name': db_name},
+        )
+        requests.post(
+            f'{REST_URL}/databases/{db_name}/collections',
+            json={'name': coll_name},
+        )
+
+        # Insert data
+        for i in range(5):
+            requests.post(
+                f'{REST_URL}/databases/{db_name}/collections/{coll_name}/documents',
+                json={'id': i, 'name': f'Item {i}'},
+                )
+
+        # Query with TOON format
+        response = requests.post(
+            f'{REST_URL}/databases/{db_name}/collections/{coll_name}/query',
+            json={'format': 'toon'},
+        )
+
+        assert response.status_code == 200
+        # Response should be TOON formatted string
+        data = response.text or response.json()
+        assert data is not None
+
+        # Cleanup
+        requests.delete(
+            f'{REST_URL}/databases/{db_name}',
+        )
+
+
+class TestErrorHandling:
+    """Test REST API error handling"""
+
+    def test_unauthorized_request(self, start_server):
+        """Test request without API key"""
+        response = requests.get(f'{REST_URL}/databases')
+
+        assert response.status_code == 401 or response.status_code == 403
+
+    def test_invalid_api_key(self, start_server):
+        """Test request with invalid API key"""
+        response = requests.get(
+            f'{REST_URL}/databases',
+            headers={'X-API-Key': 'invalid_key_123'}
+        )
+
+        assert response.status_code == 401 or response.status_code == 403
+
+    def test_not_found_database(self, start_server):
+        """Test accessing non-existent database"""
+        response = requests.get(
+            f'{REST_URL}/databases/nonexistent_db_12345/stats',
+        )
+
+        assert response.status_code == 404
+
+    def test_not_found_collection(self, start_server):
+        """Test accessing non-existent collection"""
+        db_name = f'rest_error_db_{int(time.time() * 1000)}'
+
+        # Create database
+        requests.post(
+            f'{REST_URL}/databases',
+            json={'name': db_name},
+        )
+
+        # Try to access non-existent collection
+        response = requests.get(
+            f'{REST_URL}/databases/{db_name}/collections/nonexistent_collection',
+        )
+
+        assert response.status_code == 404
+
+        # Cleanup
+        requests.delete(
+            f'{REST_URL}/databases/{db_name}',
+        )
+
+    def test_invalid_json_body(self, start_server):
+        """Test request with invalid JSON body"""
+        response = requests.post(
+            f'{REST_URL}/databases',
+            data='invalid json {{{',
+            headers={'Content-Type': 'application/json'}
+        )
+
+        assert response.status_code == 400
+
+    def test_missing_required_fields(self, start_server):
+        """Test request with missing required fields"""
+        response = requests.post(
+            f'{REST_URL}/databases',
+            json={},  # Missing 'name' field
+        )
+
+        assert response.status_code == 400
