@@ -104,10 +104,13 @@ echo -e "${CYAN}Installing: $PYTHON_PACKAGES${RESET}"
 
 # Install packages (macOS: user install only, Linux: try system first)
 if [ "$OS" = "macos" ]; then
-    # macOS: always use user install (no sudo for pip)
-    if pip3 install --user $PYTHON_PACKAGES 2>&1; then
+    # macOS: use pip with --break-system-packages for Python 3.12+ (PEP 668)
+    echo -e "${CYAN}Installing packages...${RESET}"
+    if pip3 install --user --break-system-packages $PYTHON_PACKAGES; then
         echo -e "${GREEN}✓ Python packages installed${RESET}"
-    elif python3 -m pip install --user $PYTHON_PACKAGES 2>&1; then
+    elif pip3 install --user $PYTHON_PACKAGES; then
+        echo -e "${GREEN}✓ Python packages installed${RESET}"
+    elif python3 -m pip install --user --break-system-packages $PYTHON_PACKAGES; then
         echo -e "${GREEN}✓ Python packages installed${RESET}"
     else
         echo -e "${RED}✗ Failed to install Python packages${RESET}"
