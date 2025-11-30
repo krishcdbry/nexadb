@@ -39,7 +39,9 @@ if [ "$EUID" -eq 0 ]; then
 fi
 
 # Detect OS
-if [ -f /etc/os-release ]; then
+if [ "$(uname)" = "Darwin" ]; then
+    OS="macos"
+elif [ -f /etc/os-release ]; then
     . /etc/os-release
     OS=$ID
 else
@@ -60,7 +62,15 @@ if [ "$EUID" -ne 0 ]; then
     fi
 fi
 
-if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
+if [ "$OS" = "macos" ]; then
+    echo -e "${CYAN}macOS detected - Python3 should be pre-installed${RESET}"
+    # Check for python3
+    if ! command -v python3 &> /dev/null; then
+        echo -e "${RED}Python3 not found. Please install it: brew install python3${RESET}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Python3 found${RESET}"
+elif [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
     echo -e "${CYAN}Installing packages via apt-get...${RESET}"
     $SUDO apt-get update -qq
     $SUDO apt-get install -y python3 python3-pip wget
@@ -225,9 +235,21 @@ chmod +x "$BIN_DIR/nexadb"
 # Download nexa CLI binary
 echo -e "${CYAN}Downloading nexa CLI (interactive terminal)...${RESET}"
 
-# Detect architecture
+# Detect architecture and OS
 ARCH=$(uname -m)
-if [ "$ARCH" = "x86_64" ]; then
+UNAME_S=$(uname -s)
+
+if [ "$UNAME_S" = "Darwin" ]; then
+    # macOS
+    if [ "$ARCH" = "x86_64" ]; then
+        NEXA_BINARY="nexa-x86_64-apple-darwin"
+    elif [ "$ARCH" = "arm64" ]; then
+        NEXA_BINARY="nexa-aarch64-apple-darwin"
+    else
+        echo -e "${YELLOW}Unsupported architecture: $ARCH. Skipping nexa CLI installation.${RESET}"
+        NEXA_BINARY=""
+    fi
+elif [ "$ARCH" = "x86_64" ]; then
     NEXA_BINARY="nexa-x86_64-unknown-linux-gnu"
 elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
     NEXA_BINARY="nexa-aarch64-unknown-linux-gnu"
