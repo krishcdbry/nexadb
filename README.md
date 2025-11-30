@@ -215,11 +215,15 @@ nexa -u root -p
 - ✅ Python server files and dependencies
 - ✅ Admin panel web interface
 
-### Installation via Install Script (Linux/Ubuntu)
+> **⚠️ Troubleshooting:** If Homebrew installation gets stuck at numpy/hnswlib or shows Xcode errors, use the Install Script instead (see below).
+
+### Installation via Install Script (macOS & Linux)
+
+**Recommended if Homebrew has issues.** Uses pre-built pip wheels - no compilation needed!
 
 ```bash
-# One-line install (always gets the latest version)
-curl -fsSL https://github.com/krishcdbry/nexadb/releases/latest/download/install.sh | bash
+# One-line install (macOS & Linux)
+curl -fsSL https://raw.githubusercontent.com/krishcdbry/nexadb/main/install.sh | bash
 
 # Reload your shell
 source ~/.bashrc  # or ~/.zshrc
@@ -243,14 +247,15 @@ curl -fsSL https://raw.githubusercontent.com/krishcdbry/nexadb/main/uninstall.sh
 - ✅ Python server files and dependencies
 - ✅ Admin panel web interface
 
-**Supported Linux Distributions:**
+**Supported Operating Systems:**
+- macOS (Intel & Apple Silicon)
 - Ubuntu/Debian (18.04+)
 - Fedora/RHEL/CentOS (7+)
 - Arch Linux/Manjaro
 
 **Supported Architectures:**
 - x86_64 (Intel/AMD 64-bit)
-- aarch64 (ARM64 - Raspberry Pi, AWS Graviton, etc.)
+- arm64/aarch64 (Apple Silicon, Raspberry Pi, AWS Graviton)
 
 ### Installation via Docker (Windows, Mac, Linux)
 
