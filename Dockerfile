@@ -12,11 +12,12 @@ LABEL version="3.0.5"
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (including g++ for hnswlib compilation)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    g++ \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy application files
