@@ -35,7 +35,7 @@ COPY change_events.py .
 COPY admin_panel/ admin_panel/
 
 # Install Python dependencies
-RUN pip install --no-cache-dir msgpack sortedcontainers pybloom_live numpy xxhash bitarray nexaclient
+RUN pip install --no-cache-dir msgpack sortedcontainers pybloom_live numpy xxhash bitarray nexaclient hnswlib
 
 # Download nexa CLI binary (architecture-aware)
 RUN ARCH=$(uname -m) && \

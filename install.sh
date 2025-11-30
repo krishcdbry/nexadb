@@ -88,7 +88,7 @@ echo -e "${CYAN}Installing Python packages...${RESET}"
 # Bloom filter dependencies: xxhash, bitarray (required by pybloom_live)
 # Performance: numpy (10x faster vector operations)
 # Client: nexaclient (required by nexadb_server.py for multi-database support)
-PYTHON_PACKAGES="msgpack sortedcontainers pybloom_live xxhash bitarray numpy nexaclient"
+PYTHON_PACKAGES="msgpack sortedcontainers pybloom_live xxhash bitarray numpy nexaclient hnswlib"
 
 echo -e "${CYAN}Installing: $PYTHON_PACKAGES${RESET}"
 
