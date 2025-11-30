@@ -9,6 +9,7 @@ import subprocess
 import os
 import socket
 import requests
+import uuid
 from nexaclient import NexaClient
 
 # Test configuration
@@ -147,7 +148,7 @@ def client(start_server):
 @pytest.fixture(scope='function')
 def test_database(client):
     """Create a test database and clean up after test"""
-    db_name = f"test_db_{int(time.time() * 1000)}"
+    db_name = f"test_db_{uuid.uuid4().hex[:8]}"
     client.create_database(db_name)
     yield db_name
     # Cleanup
@@ -160,7 +161,7 @@ def test_database(client):
 @pytest.fixture(scope='function')
 def test_collection(client, test_database):
     """Create a test collection and clean up after test"""
-    collection_name = f"test_collection_{int(time.time() * 1000)}"
+    collection_name = f"test_col_{uuid.uuid4().hex[:8]}"
     client.create_collection(collection_name, database=test_database)
     yield (collection_name, test_database)
     # Cleanup
