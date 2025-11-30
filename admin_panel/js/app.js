@@ -3868,8 +3868,8 @@
 
                 const data = await response.json();
 
-                if (response.ok && data.success) {
-                    showToast('success', 'Success', `Database "${databaseName}" created successfully`);
+                if (response.ok && data.status === 'success') {
+                    showToast('success', 'Success', data.message || `Database "${databaseName}" created successfully`);
                     closeModal('createDatabaseModal');
                     await loadDatabases();
                     if (state.currentView === 'databases') {
@@ -3920,8 +3920,8 @@
 
                 const data = await response.json();
 
-                if (response.ok && data.success) {
-                    showToast('success', 'Success', `Database "${databaseName}" dropped successfully`);
+                if (response.ok && data.status === 'success') {
+                    showToast('success', 'Success', data.message || `Database "${databaseName}" dropped successfully`);
                     closeModal('dropDatabaseModal');
                     clearDropDatabaseInput();
 
@@ -4101,8 +4101,8 @@
 
                 const data = await response.json();
 
-                if (response.ok && data.success) {
-                    showToast('success', 'Success', `Granted ${permission} access to ${database}`);
+                if (response.ok && data.status === 'success') {
+                    showToast('success', 'Success', data.message || `Granted ${permission} access to ${database}`);
                     closeModal('grantDatabaseAccessModal');
 
                     // Refresh permissions display
@@ -4136,8 +4136,8 @@
 
                 const data = await response.json();
 
-                if (response.ok && data.success) {
-                    showToast('success', 'Success', `Revoked access to ${database}`);
+                if (response.ok && data.status === 'success') {
+                    showToast('success', 'Success', data.message || `Revoked access to ${database}`);
 
                     // Refresh permissions display
                     await showUserDatabasePermissions(username);
