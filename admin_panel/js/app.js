@@ -532,10 +532,10 @@
                 const status = await apiCall('GET', '/status');
                 state.connected = true;
                 state.connectedAt = Date.now();
-                updateConnectionStatus(true, `Connected to ${status.database}`);
+                updateConnectionStatus(true, `Connected to ${status.server}`);
                 // Load databases list - user must select database before loading collections
                 await loadDatabases();
-                showToast('success', 'Connected', `Connected to ${status.database} v${status.version}`);
+                showToast('success', 'Connected', `Connected to ${status.server} v${status.version}`);
             } catch (error) {
                 state.connected = false;
                 updateConnectionStatus(false, 'Connection failed');
