@@ -1601,7 +1601,7 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
 
                 self.wfile.write(json.dumps({
                     'status': 'connected',
-                    'version': '3.0.5',
+                    'version': '3.0.6',
                     'server': 'NexaDB',
                     'database': 'NexaDB',  # For admin panel connection status display
                     'binary_port': 6970,
@@ -1618,7 +1618,7 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({
                 'status': 'disconnected',
-                'version': '3.0.5',
+                'version': '3.0.6',
                 'database': 'NexaDB',
                 'error': str(e)
             }).encode())

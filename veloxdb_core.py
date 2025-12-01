@@ -1031,7 +1031,7 @@ class Database:
             metadata = {
                 'name': self.name,
                 'created_at': time.time(),
-                'version': '3.0.5'
+                'version': '3.0.6'
             }
             self.engine.put(metadata_key, json.dumps(metadata).encode('utf-8'))
 
