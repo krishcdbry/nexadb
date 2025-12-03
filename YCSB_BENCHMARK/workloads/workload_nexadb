@@ -1,0 +1,106 @@
+# =============================================================================
+# NexaDB Custom Workload
+# =============================================================================
+# A balanced workload designed for comprehensive NexaDB benchmarking
+# Combines reads, updates, inserts, and scans
+#
+# Usage:
+#   ./bin/ycsb.sh load nexadb -P workloads/workload_nexadb -P nexadb.properties
+#   ./bin/ycsb.sh run nexadb -P workloads/workload_nexadb -P nexadb.properties
+# =============================================================================
+
+# Workload class
+workload=site.ycsb.workloads.CoreWorkload
+
+# -----------------------------------------------------------------------------
+# Data Settings
+# -----------------------------------------------------------------------------
+
+# Number of records to load
+recordcount=1000000
+
+# Number of operations to perform
+operationcount=1000000
+
+# Table name
+table=usertable
+
+# Number of fields per record
+fieldcount=10
+
+# Size of each field value (bytes)
+fieldlength=100
+
+# Read all fields (true) or one random field (false)
+readallfields=true
+
+# Write all fields (true) or one random field (false)
+writeallfields=false
+
+# -----------------------------------------------------------------------------
+# Operation Mix
+# -----------------------------------------------------------------------------
+# Total must equal 1.0
+
+# Proportion of read operations
+readproportion=0.50
+
+# Proportion of update operations
+updateproportion=0.25
+
+# Proportion of insert operations
+insertproportion=0.15
+
+# Proportion of scan operations
+scanproportion=0.05
+
+# Proportion of read-modify-write operations
+readmodifywriteproportion=0.05
+
+# -----------------------------------------------------------------------------
+# Access Patterns
+# -----------------------------------------------------------------------------
+
+# Request distribution: uniform, zipfian, latest, exponential, hotspot
+requestdistribution=zipfian
+
+# Zipfian constant (lower = more skewed)
+# 0.99 = highly skewed (some keys very hot)
+# 0.5 = moderately skewed
+zipfian.constant=0.99
+
+# Scan length distribution: uniform, zipfian
+scanlengthdistribution=uniform
+
+# Maximum scan length
+maxscanlength=100
+
+# Insert key order: ordered, hashed
+insertorder=hashed
+
+# -----------------------------------------------------------------------------
+# Insert Settings
+# -----------------------------------------------------------------------------
+
+# Starting key for inserts (continue from load phase)
+insertstart=0
+
+# Number of keys to insert
+insertcount=1000000
+
+# -----------------------------------------------------------------------------
+# Performance Settings
+# -----------------------------------------------------------------------------
+
+# Target throughput (ops/sec, 0 = unlimited)
+target=0
+
+# Maximum execution time (seconds, 0 = unlimited)
+maxexecutiontime=0
+
+# -----------------------------------------------------------------------------
+# Measurement Settings
+# -----------------------------------------------------------------------------
+
+measurementtype=hdrhistogram
+hdrhistogram.percentiles=50,90,95,99,99.9,99.99

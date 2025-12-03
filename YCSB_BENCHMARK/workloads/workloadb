@@ -1,0 +1,16 @@
+# Workload B: Read mostly workload
+# 95% reads, 5% updates
+# Application: Photo tagging (add tag = update, read tags = read)
+
+workload=site.ycsb.workloads.CoreWorkload
+
+recordcount=1000000
+operationcount=1000000
+
+readallfields=true
+readproportion=0.95
+updateproportion=0.05
+scanproportion=0
+insertproportion=0
+
+requestdistribution=zipfian

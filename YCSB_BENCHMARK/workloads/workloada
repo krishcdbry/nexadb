@@ -1,0 +1,16 @@
+# Workload A: Update heavy workload
+# 50% reads, 50% updates
+# Application: Session store recording recent actions
+
+workload=site.ycsb.workloads.CoreWorkload
+
+recordcount=1000000
+operationcount=1000000
+
+readallfields=true
+readproportion=0.5
+updateproportion=0.5
+scanproportion=0
+insertproportion=0
+
+requestdistribution=zipfian

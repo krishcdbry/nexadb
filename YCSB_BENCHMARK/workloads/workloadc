@@ -1,0 +1,16 @@
+# Workload C: Read only workload
+# 100% reads
+# Application: User profile cache (profiles constructed elsewhere)
+
+workload=site.ycsb.workloads.CoreWorkload
+
+recordcount=1000000
+operationcount=1000000
+
+readallfields=true
+readproportion=1
+updateproportion=0
+scanproportion=0
+insertproportion=0
+
+requestdistribution=zipfian

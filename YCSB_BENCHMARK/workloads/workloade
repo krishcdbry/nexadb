@@ -1,0 +1,20 @@
+# Workload E: Short range scan workload
+# Short range scans instead of point reads
+# Application: Threaded conversations (each scan = posts in a thread)
+
+workload=site.ycsb.workloads.CoreWorkload
+
+recordcount=1000000
+operationcount=1000000
+
+readallfields=true
+readproportion=0
+updateproportion=0
+scanproportion=0.95
+insertproportion=0.05
+
+requestdistribution=zipfian
+
+# Scan length configuration
+maxscanlength=100
+scanlengthdistribution=uniform

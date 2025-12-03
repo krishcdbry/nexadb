@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  NexaDB YCSB Binding
+
+  Build commands:
+    mvn clean package                    - Build the binding
+    mvn clean package -DskipTests        - Build without tests
+    mvn dependency:copy-dependencies     - Copy dependencies to target/dependency
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        Option 1: Standalone build (use this if building outside YCSB tree)
+        Uncomment this section and comment out the parent section below
+    -->
+    <groupId>site.ycsb</groupId>
+    <artifactId>nexadb-binding</artifactId>
+    <version>0.18.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <!--
+        Option 2: Build as part of YCSB (use this when placed in YCSB/nexadb/)
+        Uncomment this section and comment out the groupId/artifactId/version above
+
+    <parent>
+        <groupId>site.ycsb</groupId>
+        <artifactId>binding-parent</artifactId>
+        <version>0.18.0-SNAPSHOT</version>
+        <relativePath>../binding-parent</relativePath>
+    </parent>
+    <artifactId>nexadb-binding</artifactId>
+    -->
+
+    <name>NexaDB YCSB Binding</name>
+    <description>YCSB binding for NexaDB NoSQL database</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <ycsb.version>0.18.0-SNAPSHOT</ycsb.version>
+        <!-- TODO: Update with your NexaDB client version -->
+        <nexadb.version>1.0.0</nexadb.version>
+    </properties>
+
+    <dependencies>
+        <!--
+            YCSB Core interfaces are included in this project (site.ycsb package).
+            When integrating with the full YCSB project, replace these with:
+            <dependency>
+                <groupId>site.ycsb</groupId>
+                <artifactId>core</artifactId>
+                <version>${ycsb.version}</version>
+                <scope>provided</scope>
+            </dependency>
+        -->
+
+        <!-- MessagePack for NexaDB binary protocol -->
+        <dependency>
+            <groupId>org.msgpack</groupId>
+            <artifactId>msgpack-core</artifactId>
+            <version>0.9.6</version>
+        </dependency>
+
+        <!-- Logging (optional) -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.36</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>1.7.36</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Testing -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Compiler plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>${maven.compiler.source}</source>
+                    <target>${maven.compiler.target}</target>
+                </configuration>
+            </plugin>
+
+            <!-- Create executable JAR with dependencies -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <outputFile>${project.build.directory}/${project.artifactId}-${project.version}-shaded.jar</outputFile>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>site.ycsb.Client</mainClass>
+                                </transformer>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Copy dependencies to target/dependency -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.6.1</version>
+                <executions>
+                    <execution>
+                        <id>copy-dependencies</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/dependency</outputDirectory>
+                            <overWriteReleases>false</overWriteReleases>
+                            <overWriteSnapshots>true</overWriteSnapshots>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!-- Repository for YCSB artifacts (if not building within YCSB tree) -->
+    <repositories>
+        <repository>
+            <id>central</id>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </repository>
+        <!-- Add NexaDB repository if needed -->
+        <!--
+        <repository>
+            <id>nexadb-releases</id>
+            <url>https://nexadb.example.com/maven/releases</url>
+        </repository>
+        -->
+    </repositories>
+</project>

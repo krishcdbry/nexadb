@@ -1,0 +1,17 @@
+# Workload F: Read-modify-write workload
+# Read a record, modify it, write it back
+# Application: User database (records read and modified by users)
+
+workload=site.ycsb.workloads.CoreWorkload
+
+recordcount=1000000
+operationcount=1000000
+
+readallfields=true
+readproportion=0.5
+updateproportion=0
+scanproportion=0
+insertproportion=0
+readmodifywriteproportion=0.5
+
+requestdistribution=zipfian

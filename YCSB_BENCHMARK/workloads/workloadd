@@ -1,0 +1,17 @@
+# Workload D: Read latest workload
+# New records inserted, reads favor recent records
+# Application: User status updates (people want to read the latest)
+
+workload=site.ycsb.workloads.CoreWorkload
+
+recordcount=1000000
+operationcount=1000000
+
+readallfields=true
+readproportion=0.95
+updateproportion=0
+scanproportion=0
+insertproportion=0.05
+
+# Use "latest" distribution to favor recently inserted records
+requestdistribution=latest
