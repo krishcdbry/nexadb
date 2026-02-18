@@ -188,7 +188,7 @@ results = client.vector_search(
 
 ```bash
 # Add the tap
-brew tap krishcdbry/nexadb
+brew tap krishcdbry/tap
 
 # Install NexaDB
 brew install nexadb
