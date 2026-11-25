@@ -17,8 +17,8 @@
                 // Dark theme uses light logo (white/light colored)
                 // Light theme uses dark logo (dark colored)
                 logoImage.src = theme === 'dark'
-                    ? 'https://nexadb.io/logo-light.svg'
-                    : 'https://nexadb.io/logo-dark.svg';
+                    ? 'logo-light.svg'
+                    : 'logo-dark.svg';
             }
         }
 

@@ -829,7 +829,7 @@ class NexaDBServer:
         print(f"\n{BLUE}{BOLD}📦 CONNECT TO NEXADB{RESET}")
         print(f"   {WHITE}├─{RESET} {BOLD}Python:{RESET}        {CYAN}pip install nexadbclient{RESET}")
         print(f"   {WHITE}├─{RESET} {BOLD}Node.js:{RESET}       {CYAN}npm install nexaclient{RESET}")
-        print(f"   {WHITE}└─{RESET} {BOLD}Docs:{RESET}          {GREEN}https://nexadb.io/docs{RESET}")
+        print(f"   {WHITE}└─{RESET} {BOLD}Docs:{RESET}          {GREEN}https://nexadb.dev/docs{RESET}")
 
         print(f"\n{CYAN}{BOLD}✨ FEATURES{RESET}")
         print(f"   {WHITE}├─{RESET} {GREEN}✓{RESET} HNSW Vector Search (200x faster)")
