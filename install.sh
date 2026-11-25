@@ -183,6 +183,10 @@ mkdir -p admin_panel/css admin_panel/js
 curl -fsSL "${BASE_URL}/admin_panel/index.html" -o admin_panel/index.html
 curl -fsSL "${BASE_URL}/admin_panel/login.html" -o admin_panel/login.html
 
+# Download logos (bundled so the panel works offline)
+curl -fsSL "${BASE_URL}/admin_panel/logo-light.svg" -o admin_panel/logo-light.svg 2>/dev/null || true
+curl -fsSL "${BASE_URL}/admin_panel/logo-dark.svg" -o admin_panel/logo-dark.svg 2>/dev/null || true
+
 # Download CSS
 curl -fsSL "${BASE_URL}/admin_panel/css/styles.css" -o admin_panel/css/styles.css 2>/dev/null || true
 
@@ -376,7 +380,7 @@ echo -e ""
 
 echo -e "${CYAN}${BOLD}🔗 RESOURCES${RESET}"
 echo -e "   ${CYAN}Documentation:${RESET} https://github.com/krishcdbry/nexadb"
-echo -e "   ${CYAN}Website:${RESET}       https://nexadb.io"
+echo -e "   ${CYAN}Website:${RESET}       https://nexadb.dev"
 echo -e ""
 
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
