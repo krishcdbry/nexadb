@@ -7,7 +7,7 @@ FROM python:3.11-slim
 # Metadata
 LABEL maintainer="Krish <krishcdbry@gmail.com>"
 LABEL description="NexaDB - Database for AI Developers"
-LABEL version="3.0.5"
+LABEL version="3.0.7"
 
 # Set working directory
 WORKDIR /app
